@@ -17,8 +17,10 @@ const PREVIEW_SECONDS_SETTING = "previewSeconds";
 const TRANSFER_ITEM_SETTING = "transferItemToWinner";
 const WINNER_SOUND_ENABLED_SETTING = "winnerSoundEnabled";
 const WINNER_SOUND_SETTING = "winnerSound";
+const WINNER_SOUND_VOLUME_SETTING = "winnerSoundVolume";
 const AUCTION_START_SOUND_ENABLED_SETTING = "auctionStartSoundEnabled";
 const AUCTION_START_SOUND_SETTING = "auctionStartSound";
+const AUCTION_START_SOUND_VOLUME_SETTING = "auctionStartSoundVolume";
 const AUTO_OPEN_PLAYERS_SETTING = "autoOpenPlayers";
 const AUCTION_PROFILES_SETTING = "auctionProfiles";
 const ACTIVE_AUCTION_SETTING = "activeAuctionId";
@@ -395,14 +397,16 @@ function playWinnerSound() {
   if (!game.settings.get(MODULE_ID, WINNER_SOUND_ENABLED_SETTING)) return;
   const src = game.settings.get(MODULE_ID, WINNER_SOUND_SETTING);
   if (!src) return;
-  AudioHelper.play({ src, volume: 0.8, autoplay: true, loop: false }, true);
+  const volume = Math.max(0, Math.min(1, Number(game.settings.get(MODULE_ID, WINNER_SOUND_VOLUME_SETTING)) || 0.8));
+  AudioHelper.play({ src, volume, autoplay: true, loop: false }, true);
 }
 
 function playAuctionStartSound() {
   if (!game.settings.get(MODULE_ID, AUCTION_START_SOUND_ENABLED_SETTING)) return;
   const src = game.settings.get(MODULE_ID, AUCTION_START_SOUND_SETTING);
   if (!src) return;
-  AudioHelper.play({ src, volume: 0.8, autoplay: true, loop: false }, true);
+  const volume = Math.max(0, Math.min(1, Number(game.settings.get(MODULE_ID, AUCTION_START_SOUND_VOLUME_SETTING)) || 0.8));
+  AudioHelper.play({ src, volume, autoplay: true, loop: false }, true);
 }
 
 async function ensureMacros() {
@@ -547,6 +551,7 @@ class MidnightAuctionApp extends Application {
     this._ending = false;
     this._selectedRoundId = null;
     this._showSettings = false;
+    this._showBidders = false;
   }
 
   async getData() {
@@ -620,6 +625,7 @@ class MidnightAuctionApp extends Application {
       npcBidders,
       npcSlots: npcBidderSlots(npcBidders),
       showSettings: this._showSettings,
+      showBidders: this._showBidders,
       activeAuctionName: activeAuctionName(),
       auctionProfiles: profiles.map((profile) => ({
         ...profile,
@@ -642,8 +648,10 @@ class MidnightAuctionApp extends Application {
         transferItemToWinner: Boolean(game.settings.get(MODULE_ID, TRANSFER_ITEM_SETTING)),
         winnerSoundEnabled: Boolean(game.settings.get(MODULE_ID, WINNER_SOUND_ENABLED_SETTING)),
         winnerSound: game.settings.get(MODULE_ID, WINNER_SOUND_SETTING) || "",
+        winnerSoundVolume: Number(game.settings.get(MODULE_ID, WINNER_SOUND_VOLUME_SETTING)) || 0.8,
         auctionStartSoundEnabled: Boolean(game.settings.get(MODULE_ID, AUCTION_START_SOUND_ENABLED_SETTING)),
         auctionStartSound: game.settings.get(MODULE_ID, AUCTION_START_SOUND_SETTING) || "",
+        auctionStartSoundVolume: Number(game.settings.get(MODULE_ID, AUCTION_START_SOUND_VOLUME_SETTING)) || 0.8,
         autoOpenPlayers: Boolean(game.settings.get(MODULE_ID, AUTO_OPEN_PLAYERS_SETTING)),
         startingBidPercent: Number(game.settings.get(MODULE_ID, STARTING_BID_PERCENT_SETTING)) || 0,
         roundCount: configuredRoundCount(),
@@ -695,6 +703,8 @@ class MidnightAuctionApp extends Application {
     html.find("[data-action='refresh']").on("click", () => this.render(false));
     html.find("[data-action='stop-auction']").on("click", () => this._onStopAuction());
     html.find("[data-action='toggle-settings']").on("click", () => this._onToggleSettings());
+    html.find("[data-action='toggle-bidders']").on("click", () => this._onToggleBidders());
+    html.find("[data-action='pick-audio']").on("click", (event) => this._onPickAudio(event));
     html.find("[data-action='save-auction']").on("click", () => this._onSaveAuction());
     html.find("[data-action='new-auction']").on("click", () => this._onNewAuction());
     html.find("[data-action='load-auction']").on("click", (event) => this._onLoadAuction(event));
@@ -757,6 +767,26 @@ class MidnightAuctionApp extends Application {
     if (!game.user.isGM) return;
     this._showSettings = !this._showSettings;
     this.render(false);
+  }
+
+  _onToggleBidders() {
+    if (!game.user.isGM) return;
+    this._showBidders = !this._showBidders;
+    this.render(false);
+  }
+
+  _onPickAudio(event) {
+    if (!game.user.isGM) return;
+    const setting = event.currentTarget.dataset.setting;
+    new FilePicker({
+      type: "audio",
+      current: game.settings.get(MODULE_ID, setting) || "",
+      callback: async (path) => {
+        await game.settings.set(MODULE_ID, setting, path);
+        renderAuctionApps();
+        game.socket.emit(SOCKET, { type: "settings" });
+      }
+    }).browse();
   }
 
   async _onSaveAuction() {
@@ -1248,7 +1278,9 @@ class MidnightAuctionApp extends Application {
       ROUND_COUNT_SETTING,
       DEFAULT_INCREMENT_SETTING,
       NPC_BID_INCREMENT_SETTING,
-      PREVIEW_SECONDS_SETTING
+      PREVIEW_SECONDS_SETTING,
+      WINNER_SOUND_VOLUME_SETTING,
+      AUCTION_START_SOUND_VOLUME_SETTING
     ]);
     const booleanSettings = new Set([
       PREVIEW_ENABLED_SETTING,
@@ -1265,6 +1297,7 @@ class MidnightAuctionApp extends Application {
     if (setting === SUDDEN_DEATH_SECONDS_SETTING) value = Math.max(1, value);
     if (setting === PREVIEW_SECONDS_SETTING) value = Math.max(1, value);
     if (setting === STARTING_BID_PERCENT_SETTING) value = Math.max(0, Math.min(1000, value));
+    if ([WINNER_SOUND_VOLUME_SETTING, AUCTION_START_SOUND_VOLUME_SETTING].includes(setting)) value = Math.max(0, Math.min(1, value));
     if ([DEFAULT_INCREMENT_SETTING, NPC_BID_INCREMENT_SETTING].includes(setting)) value = Math.max(1, value);
 
     await game.settings.set(MODULE_ID, setting, value);
@@ -1539,6 +1572,15 @@ Hooks.once("init", () => {
     default: ""
   });
 
+  game.settings.register(MODULE_ID, WINNER_SOUND_VOLUME_SETTING, {
+    name: "Winner Sound Volume",
+    hint: "Volume for the winner sound, from 0 to 1.",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 0.8
+  });
+
   game.settings.register(MODULE_ID, AUCTION_START_SOUND_ENABLED_SETTING, {
     name: "Play Auction Start Sound",
     hint: "Play a table-wide sound when a round starts.",
@@ -1555,6 +1597,15 @@ Hooks.once("init", () => {
     config: true,
     type: String,
     default: ""
+  });
+
+  game.settings.register(MODULE_ID, AUCTION_START_SOUND_VOLUME_SETTING, {
+    name: "Auction Start Sound Volume",
+    hint: "Volume for the round-start sound, from 0 to 1.",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 0.8
   });
 
   game.settings.register(MODULE_ID, AUTO_OPEN_PLAYERS_SETTING, {

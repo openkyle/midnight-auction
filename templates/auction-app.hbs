@@ -67,6 +67,31 @@
       <button type="button" data-action="stop-auction"><i class="fas fa-stop"></i> End Auction</button>
     </div>
 
+    <button class="ma-section-tab {{#if showBidders}}is-open{{/if}}" type="button" data-action="toggle-bidders">
+      <i class="fas fa-users"></i> NPC Bidders
+    </button>
+
+    {{#if showBidders}}
+    <section class="ma-npc-panel" data-npc-drop>
+      <div class="ma-panel-title">Drop Auction Bidders here</div>
+      <div class="ma-npc-list">
+        {{#each npcSlots}}
+        <div class="ma-npc-row {{#unless occupied}}is-empty{{/unless}}" data-npc-index="{{index}}">
+          <span>{{number}}</span>
+          {{#if occupied}}
+          <strong>{{name}}</strong>
+          <button type="button" data-action="edit-npc" data-npc-index="{{index}}" title="Edit bidder"><i class="fas fa-pen"></i></button>
+          <button type="button" data-action="remove-npc" data-npc-index="{{index}}" title="Remove bidder"><i class="fas fa-times"></i></button>
+          {{else}}
+          <em>Drop bidder here</em>
+          {{/if}}
+        </div>
+        {{/each}}
+      </div>
+    </section>
+    {{/if}}
+
+    {{#if showSettings}}
     <section class="ma-auction-profiles">
       <div class="ma-profile-head">
         <strong>{{activeAuctionName}}</strong>
@@ -89,7 +114,6 @@
       </div>
     </section>
 
-    {{#if showSettings}}
     <section class="ma-settings-panel">
       <label>Bid Timer
         <select data-setting="timerMode">
@@ -134,32 +158,26 @@
       <label class="ma-setting-wide">Auction Photo
         <input type="text" value="{{settings.auctionPhoto}}" data-setting="auctionPhoto" placeholder="icons/environment/settlement/market-stall.webp">
       </label>
-      <label class="ma-setting-wide">Winner Sound
-        <input type="text" value="{{settings.winnerSound}}" data-setting="winnerSound" placeholder="sounds/interface/level-up.wav">
+      <label class="ma-sound-picker">Winner Sound
+        <span>
+          <input type="text" readonly value="{{settings.winnerSound}}" placeholder="Choose sound">
+          <button type="button" data-action="pick-audio" data-setting="winnerSound" title="Choose winner sound"><i class="fas fa-folder-open"></i></button>
+        </span>
       </label>
-      <label class="ma-setting-wide">Start Sound
-        <input type="text" value="{{settings.auctionStartSound}}" data-setting="auctionStartSound" placeholder="sounds/interface/notify.wav">
+      <label class="ma-volume-setting">Winner Vol.
+        <input type="range" min="0" max="1" step="0.05" value="{{settings.winnerSoundVolume}}" data-setting="winnerSoundVolume">
+      </label>
+      <label class="ma-sound-picker">Start Sound
+        <span>
+          <input type="text" readonly value="{{settings.auctionStartSound}}" placeholder="Choose sound">
+          <button type="button" data-action="pick-audio" data-setting="auctionStartSound" title="Choose start sound"><i class="fas fa-folder-open"></i></button>
+        </span>
+      </label>
+      <label class="ma-volume-setting">Start Vol.
+        <input type="range" min="0" max="1" step="0.05" value="{{settings.auctionStartSoundVolume}}" data-setting="auctionStartSoundVolume">
       </label>
     </section>
     {{/if}}
-
-    <section class="ma-npc-panel" data-npc-drop>
-      <div class="ma-panel-title">Drop Auction Bidders here</div>
-      <div class="ma-npc-list">
-        {{#each npcSlots}}
-        <div class="ma-npc-row {{#unless occupied}}is-empty{{/unless}}" data-npc-index="{{index}}">
-          <span>{{number}}</span>
-          {{#if occupied}}
-          <strong>{{name}}</strong>
-          <button type="button" data-action="edit-npc" data-npc-index="{{index}}" title="Edit bidder"><i class="fas fa-pen"></i></button>
-          <button type="button" data-action="remove-npc" data-npc-index="{{index}}" title="Remove bidder"><i class="fas fa-times"></i></button>
-          {{else}}
-          <em>Drop bidder here</em>
-          {{/if}}
-        </div>
-        {{/each}}
-      </div>
-    </section>
 
     <nav class="ma-round-tabs" aria-label="Auction rounds">
       {{#each rounds}}

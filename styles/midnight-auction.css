@@ -398,6 +398,19 @@
   opacity: 0.55;
 }
 
+.ma-section-tab {
+  justify-self: start;
+  width: auto;
+  min-width: 128px;
+  padding: 4px 10px;
+  text-align: left;
+}
+
+.ma-section-tab.is-open {
+  font-weight: 700;
+  border-color: var(--ma-highlight);
+}
+
 .ma-settings-panel {
   display: grid;
   grid-template-columns: repeat(6, minmax(86px, 1fr));
@@ -479,6 +492,26 @@
 
 .ma-setting-wide {
   grid-column: span 3;
+}
+
+.ma-sound-picker {
+  grid-column: span 3;
+}
+
+.ma-sound-picker span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 4px;
+}
+
+.ma-sound-picker button {
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+}
+
+.ma-volume-setting {
+  grid-column: span 2;
 }
 
 .ma-npc-panel {
