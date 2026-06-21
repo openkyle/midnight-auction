@@ -231,10 +231,22 @@
 }
 
 .ma-item-detail h2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  align-items: baseline;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--ma-rule);
   font-size: 26px;
   line-height: 1.1;
+}
+
+.ma-item-detail h2 small {
+  color: rgba(0, 0, 0, 0.64);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .ma-description {
@@ -389,6 +401,20 @@
 .ma-settings-panel select {
   width: 100%;
   height: 28px;
+}
+
+.ma-setting-check {
+  display: grid;
+  align-content: end;
+  justify-items: center;
+}
+
+.ma-setting-check input {
+  width: auto;
+}
+
+.ma-setting-wide {
+  grid-column: span 3;
 }
 
 .ma-npc-panel {

@@ -28,7 +28,7 @@
     </div>
     <div class="ma-item-detail">
       <div class="ma-eyebrow">Current Lot</div>
-      <h2>{{item.name}}</h2>
+      <h2>{{item.name}} <small>Mkt. Price: {{marketPrice}} gp</small></h2>
       <div class="ma-description">{{{itemDescription}}}</div>
     </div>
     <div class="ma-highest-card">
@@ -50,7 +50,7 @@
     </div>
     <button class="ma-bid" type="button" data-action="bid" {{#unless canBid}}disabled{{/unless}}>
       <span class="ma-bid-progress" style="width: {{timerProgress}}%"></span>
-      <strong>Bid {{nextBid}} gp</strong>
+      <strong>{{bidLabel}}</strong>
     </button>
     <div class="ma-timer {{#if urgent}}is-urgent{{/if}}">
       <span>{{timerLabel}}</span>
@@ -79,6 +79,12 @@
       <label>Sudden Death
         <input type="number" min="1" value="{{settings.suddenDeathSeconds}}" data-setting="suddenDeathSeconds">
       </label>
+      <label class="ma-setting-check">Preview
+        <input type="checkbox" {{checked settings.previewEnabled}} data-setting="previewEnabled">
+      </label>
+      <label>Read Time
+        <input type="number" min="1" value="{{settings.previewSeconds}}" data-setting="previewSeconds">
+      </label>
       <label>Start %
         <input type="number" min="0" value="{{settings.startingBidPercent}}" data-setting="startingBidPercent">
       </label>
@@ -90,6 +96,9 @@
       </label>
       <label>NPC Step
         <input type="number" min="1" value="{{settings.npcBidIncrement}}" data-setting="npcBidIncrement">
+      </label>
+      <label class="ma-setting-wide">Auction Photo
+        <input type="text" value="{{settings.auctionPhoto}}" data-setting="auctionPhoto" placeholder="icons/environment/settlement/market-stall.webp">
       </label>
     </section>
     {{/if}}

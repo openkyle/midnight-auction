@@ -11,6 +11,9 @@ const NPC_BIDDERS_SETTING = "npcBidders";
 const ROUND_COUNT_SETTING = "roundCount";
 const STARTING_BID_PERCENT_SETTING = "startingBidPercent";
 const SCENE_IMAGES_SETTING = "sceneImages";
+const AUCTION_PHOTO_SETTING = "auctionPhoto";
+const PREVIEW_ENABLED_SETTING = "previewEnabled";
+const PREVIEW_SECONDS_SETTING = "previewSeconds";
 const FLOAT_POSITION_SETTING = "floatingButtonPosition";
 
 function randomId() {
@@ -127,11 +130,13 @@ async function setState(nextState, { ping = true } = {}) {
 function sceneImages() {
   const raw = game.settings.get(MODULE_ID, SCENE_IMAGES_SETTING) || "";
   const values = raw.split(/\r?\n/).map((v) => v.trim()).filter(Boolean);
+  const auctionPhoto = game.settings.get(MODULE_ID, AUCTION_PHOTO_SETTING) || values[0] || "";
   return {
-    idle: values[0] || "icons/environment/settlement/market-stall.webp",
-    round: values[1] || values[0] || "icons/environment/settlement/market-stall.webp",
-    item: values[2] || values[1] || values[0] || "icons/sundries/lights/candle-unlit-grey.webp",
-    sold: values[3] || values[2] || values[0] || "icons/commodities/currency/coins-assorted-mix-gold.webp"
+    idle: auctionPhoto || "icons/environment/settlement/market-stall.webp",
+    round: values[1] || auctionPhoto || "icons/environment/settlement/market-stall.webp",
+    preview: values[2] || values[1] || auctionPhoto || "icons/sundries/lights/candle-unlit-grey.webp",
+    item: values[2] || values[1] || auctionPhoto || "icons/sundries/lights/candle-unlit-grey.webp",
+    sold: values[3] || values[2] || auctionPhoto || "icons/commodities/currency/coins-assorted-mix-gold.webp"
   };
 }
 
@@ -172,6 +177,7 @@ function lotSnapshot(item) {
     img: item.img || "icons/svg/item-bag.svg",
     sceneImg: item.sceneImg || "",
     description: item.description || "",
+    marketPrice: Number(item.marketPrice) || 0,
     startingPrice: Number(item.startingPrice) || 0,
     increment: Number(item.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1
   };
@@ -219,12 +225,20 @@ function bidResetsTimer() {
   return timerMode() !== "sudden";
 }
 
+function previewEnabled() {
+  return Boolean(game.settings.get(MODULE_ID, PREVIEW_ENABLED_SETTING));
+}
+
+function previewSeconds() {
+  return Math.max(1, Number(game.settings.get(MODULE_ID, PREVIEW_SECONDS_SETTING)) || 10);
+}
+
 function bidRows(state) {
   return (state.bids ?? []).slice(0, 8);
 }
 
 function timerProgress(state, timeLeft) {
-  if (state.status !== "item" || !state.endsAt || !state.timerStartedAt) return 0;
+  if (!["preview", "item"].includes(state.status) || !state.endsAt || !state.timerStartedAt) return 0;
   const total = Math.max(1, state.endsAt - state.timerStartedAt);
   const elapsed = Math.max(0, Date.now() - state.timerStartedAt);
   return Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
@@ -279,6 +293,10 @@ function escapeHtml(value) {
 function startingBidForValue(value) {
   const percent = Math.max(0, Number(game.settings.get(MODULE_ID, STARTING_BID_PERCENT_SETTING)) || 0);
   return Math.floor((Number(value) || 0) * (percent / 100));
+}
+
+function itemMarketPrice(item) {
+  return Number(foundry.utils.getProperty(item, "system.price.value")) || 0;
 }
 
 function renderAuctionApps() {
@@ -443,25 +461,30 @@ class MidnightAuctionApp extends Application {
     const mode = timerMode();
     const latestBids = bidSummaryRows(state, activeItem);
     const highestBid = latestBids[0] ?? null;
+    const timingActive = ["preview", "item"].includes(state.status);
+    const isBidding = state.status === "item";
+    const isPreview = state.status === "preview";
 
     return {
       isGM: game.user.isGM,
-      title: state.status === "item" ? "Bidding Is Live" : AUCTION_NAME,
+      title: isBidding ? "Bidding Is Live" : isPreview ? "Lot Preview" : AUCTION_NAME,
       subtitle: state.message,
       sceneImage: activeItem?.sceneImg || images[state.status] || images.idle,
-      timerLabel: state.status === "item" ? "Seconds Left" : "Timer",
-      timeLeft: state.status === "item" ? timeLeft : "--",
-      timeDisplay: state.status === "item" ? formatTimerLabel(timeLeft) : "--",
+      timerLabel: isPreview ? "Reading Time" : isBidding ? "Seconds Left" : "Timer",
+      timeLeft: timingActive ? timeLeft : "--",
+      timeDisplay: timingActive ? formatTimerLabel(timeLeft) : "--",
       timerProgress: timerProgress(state, timeLeft),
-      urgent: state.status === "item" && timeLeft <= 3,
+      urgent: timingActive && timeLeft <= 3,
       item,
       itemDescription: activeItem ? await TextEditor.enrichHTML(activeItem.description || "", { async: true }) : "<p>The velvet curtain has not lifted yet.</p>",
+      marketPrice: Number(activeItem?.marketPrice) || 0,
       currentPrice: Number(state.currentPrice) || 0,
       nextBid,
+      bidLabel: isPreview ? "Read the lot" : `Bid ${nextBid} gp`,
       nextNpcBid: nextNpcBidFor(activeItem, state),
       gold,
-      canBid: Boolean(activeItem && state.status === "item" && goldActor && gold >= nextBid),
-      canNpcBid: Boolean(activeItem && state.status === "item" && npcBidders.some((bidder) => bidder.name?.trim())),
+      canBid: Boolean(activeItem && isBidding && goldActor && gold >= nextBid),
+      canNpcBid: Boolean(activeItem && isBidding && npcBidders.some((bidder) => bidder.name?.trim())),
       bids: latestBids,
       highestBidder: highestBid
         ? {
@@ -489,6 +512,9 @@ class MidnightAuctionApp extends Application {
           { value: "sudden", label: "Sudden death", selected: mode === "sudden" }
         ],
         suddenDeathSeconds: Number(game.settings.get(MODULE_ID, SUDDEN_DEATH_SECONDS_SETTING)) || 10,
+        previewEnabled: previewEnabled(),
+        previewSeconds: previewSeconds(),
+        auctionPhoto: game.settings.get(MODULE_ID, AUCTION_PHOTO_SETTING) || "",
         startingBidPercent: Number(game.settings.get(MODULE_ID, STARTING_BID_PERCENT_SETTING)) || 0,
         roundCount: configuredRoundCount(),
         defaultIncrement: Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 10,
@@ -571,8 +597,9 @@ class MidnightAuctionApp extends Application {
     if (this._clock) window.clearInterval(this._clock);
     this._clock = window.setInterval(() => {
       const state = getState();
-      if (state.status === "item" && state.endsAt && Date.now() >= state.endsAt && game.user.isGM && isPrimaryActiveGM() && !this._ending) {
-        this._onEndItem({ currentTarget: { dataset: { itemId: state.itemId } } });
+      if (["preview", "item"].includes(state.status) && state.endsAt && Date.now() >= state.endsAt && game.user.isGM && isPrimaryActiveGM() && !this._ending) {
+        if (state.status === "preview") this._beginLotBidding(state);
+        else this._onEndItem({ currentTarget: { dataset: { itemId: state.itemId } } });
       } else {
         this.render(false);
       }
@@ -610,6 +637,7 @@ class MidnightAuctionApp extends Application {
       img: itemData?.img || "icons/svg/item-bag.svg",
       sceneImg: "",
       description: itemData?.description || "Describe this lot for your bidders.",
+      marketPrice: itemData?.marketPrice ?? 0,
       startingPrice: itemData?.startingPrice ?? 10,
       increment: Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 10
     });
@@ -617,11 +645,12 @@ class MidnightAuctionApp extends Application {
   }
 
   _lotFromItem(item) {
-    const value = Number(foundry.utils.getProperty(item, "system.price.value")) || 0;
+    const value = itemMarketPrice(item);
     return {
       name: item.name,
       img: item.img || "icons/svg/item-bag.svg",
       description: foundry.utils.getProperty(item, "system.description.value") || "",
+      marketPrice: value,
       startingPrice: startingBidForValue(value)
     };
   }
@@ -709,6 +738,7 @@ class MidnightAuctionApp extends Application {
       activeItem: null,
       currentPrice: 0,
       endsAt: null,
+      timerStartedAt: null,
       bids: [],
       completedItemIds: [],
       message: `${round.title || `Round ${round.number}`} has ended.`
@@ -730,13 +760,17 @@ class MidnightAuctionApp extends Application {
   async _startLot(round, item, { completedItemIds = getState().completedItemIds ?? [], message = null } = {}) {
     const startingPrice = Number(item.startingPrice) || 0;
     const now = Date.now();
+    const usePreview = previewEnabled();
+    const lotMessage = message && !usePreview ? message : usePreview
+      ? `${item.name} is being presented. Bidding opens shortly.`
+      : `${item.name} is on the block. Opening bid: ${startingPrice} gp.`;
     await setState({
-      status: "item",
+      status: usePreview ? "preview" : "item",
       roundId: round.id,
       itemId: item.id,
       activeItem: lotSnapshot(item),
       currentPrice: startingPrice,
-      endsAt: now + timerSeconds() * 1000,
+      endsAt: now + (usePreview ? previewSeconds() : timerSeconds()) * 1000,
       timerStartedAt: now,
       winnerUserId: null,
       winnerActorUuid: null,
@@ -747,8 +781,34 @@ class MidnightAuctionApp extends Application {
       },
       completedItemIds,
       bids: [],
-      message: message || `${item.name} is on the block. Opening bid: ${startingPrice} gp.`
+      message: lotMessage
     });
+  }
+
+  async _beginLotBidding(state = getState()) {
+    if (!game.user.isGM || !isPrimaryActiveGM()) return;
+    this._ending = true;
+    try {
+      const catalog = getCatalog();
+      const { item: catalogItem } = activeLot(catalog, state);
+      const item = catalogItem ?? state.activeItem;
+      if (!item || state.status !== "preview") return;
+
+      const now = Date.now();
+      const startingPrice = Number(item.startingPrice) || Number(state.currentPrice) || 0;
+      await setState({
+        ...state,
+        status: "item",
+        activeItem: lotSnapshot(item),
+        currentPrice: startingPrice,
+        endsAt: now + timerSeconds() * 1000,
+        timerStartedAt: now,
+        message: `${item.name} is on the block. Opening bid: ${startingPrice} gp.`
+      });
+      notifyAll(`Bidding is open for ${item.name}.`);
+    } finally {
+      this._ending = false;
+    }
   }
 
   async _onEndItem(event) {
@@ -913,13 +973,19 @@ class MidnightAuctionApp extends Application {
       STARTING_BID_PERCENT_SETTING,
       ROUND_COUNT_SETTING,
       DEFAULT_INCREMENT_SETTING,
-      NPC_BID_INCREMENT_SETTING
+      NPC_BID_INCREMENT_SETTING,
+      PREVIEW_SECONDS_SETTING
+    ]);
+    const booleanSettings = new Set([
+      PREVIEW_ENABLED_SETTING
     ]);
     let value = event.currentTarget.value;
+    if (booleanSettings.has(setting)) value = event.currentTarget.checked;
     if (numericSettings.has(setting)) value = Number(value) || 0;
 
     if (setting === ROUND_COUNT_SETTING) value = Math.max(1, Math.min(10, value));
     if (setting === SUDDEN_DEATH_SECONDS_SETTING) value = Math.max(1, value);
+    if (setting === PREVIEW_SECONDS_SETTING) value = Math.max(1, value);
     if (setting === STARTING_BID_PERCENT_SETTING) value = Math.max(0, Math.min(1000, value));
     if ([DEFAULT_INCREMENT_SETTING, NPC_BID_INCREMENT_SETTING].includes(setting)) value = Math.max(1, value);
 
@@ -1116,6 +1182,24 @@ Hooks.once("init", () => {
     default: 10
   });
 
+  game.settings.register(MODULE_ID, PREVIEW_ENABLED_SETTING, {
+    name: "Show Lot Preview",
+    hint: "Show the item description for a set time before bidding begins.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
+  game.settings.register(MODULE_ID, PREVIEW_SECONDS_SETTING, {
+    name: "Lot Preview Seconds",
+    hint: "How long players can read a lot before the bidding countdown begins.",
+    scope: "world",
+    config: true,
+    type: Number,
+    default: 10
+  });
+
   game.settings.register(MODULE_ID, STARTING_BID_PERCENT_SETTING, {
     name: "Starting Bid Percent",
     hint: "Opening bid as a percentage of item value, rounded down when the item is dropped into a round.",
@@ -1175,6 +1259,15 @@ Hooks.once("init", () => {
   game.settings.register(MODULE_ID, SCENE_IMAGES_SETTING, {
     name: "Scene Images",
     hint: "Optional image paths, one per line: idle, round live, item live, sold.",
+    scope: "world",
+    config: true,
+    type: String,
+    default: ""
+  });
+
+  game.settings.register(MODULE_ID, AUCTION_PHOTO_SETTING, {
+    name: "Auction Photo Image",
+    hint: "Image path for the main auction photo when no lot-specific scene image is set.",
     scope: "world",
     config: true,
     type: String,
