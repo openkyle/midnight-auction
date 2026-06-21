@@ -392,7 +392,7 @@
 }
 
 .ma-npc-panel {
-  padding: 8px 10px;
+  padding: 6px 8px;
 }
 
 .ma-panel-title {
@@ -402,20 +402,27 @@
 
 .ma-npc-list {
   display: grid;
-  grid-template-columns: repeat(2, minmax(240px, 1fr));
-  gap: 6px;
-  margin-top: 8px;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 4px 8px;
+  margin-top: 6px;
 }
 
 .ma-npc-row {
   display: grid;
-  grid-template-columns: 24px minmax(120px, 1fr);
-  gap: 6px;
+  grid-template-columns: 22px minmax(90px, 1fr) 24px 24px;
+  gap: 4px;
   align-items: center;
-  padding: 6px;
+  min-height: 28px;
+  padding: 3px 4px;
   border: 1px dashed var(--ma-line);
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+}
+
+.ma-npc-row.is-empty {
+  grid-template-columns: 22px minmax(90px, 1fr);
+  opacity: 0.62;
 }
 
 .ma-npc-row span {
@@ -423,9 +430,24 @@
   text-align: right;
 }
 
-.ma-npc-row input {
-  width: 100%;
-  height: 26px;
+.ma-npc-row strong,
+.ma-npc-row em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ma-npc-row em {
+  font-style: normal;
+}
+
+.ma-npc-row button {
+  width: 24px;
+  height: 22px;
+  min-height: 0;
+  padding: 0;
+  line-height: 1;
 }
 
 .ma-round-tabs {
@@ -569,7 +591,6 @@
   }
 
   .ma-npc-list,
-  .ma-npc-row,
   .ma-toolbar,
   .ma-settings-panel,
   .ma-drop-row {

@@ -40,21 +40,7 @@ function defaultState() {
 }
 
 function defaultNpcBidders() {
-  return [
-    "Lady Vex Marrow",
-    "Master Orris Pike",
-    "The Brass Veil",
-    "Professor Nettlewick",
-    "Dame Sable",
-    "Brother Coin",
-    "The Red Ledger",
-    "Silas Moon",
-    "Madam Thrice",
-    "Old Crown"
-  ].map((name) => ({
-    id: randomId(),
-    name
-  }));
+  return [];
 }
 
 function defaultCatalog() {
@@ -105,18 +91,21 @@ function normalizeCatalog(catalog) {
 function getNpcBidders() {
   const bidders = foundry.utils.deepClone(game.settings.get(MODULE_ID, NPC_BIDDERS_SETTING) ?? []);
   const normalized = Array.isArray(bidders) ? bidders.slice(0, 10) : [];
-  while (normalized.length < 10) {
-    const defaults = defaultNpcBidders();
-    normalized.push(defaults[normalized.length]);
-  }
-  return normalized.map((bidder, index) => ({
+  return normalized.filter((bidder) => bidder?.name?.trim()).map((bidder, index) => ({
     id: bidder.id || randomId(),
     name: bidder.name || `NPC Bidder ${index + 1}`
   }));
 }
 
 async function setNpcBidders(bidders, { ping = true } = {}) {
-  await game.settings.set(MODULE_ID, NPC_BIDDERS_SETTING, bidders.slice(0, 10));
+  const normalized = (Array.isArray(bidders) ? bidders : [])
+    .filter((bidder) => bidder?.name?.trim())
+    .slice(0, 10)
+    .map((bidder) => ({
+      id: bidder.id || randomId(),
+      name: bidder.name.trim()
+    }));
+  await game.settings.set(MODULE_ID, NPC_BIDDERS_SETTING, normalized);
   renderAuctionApps();
   if (ping) game.socket.emit(SOCKET, { type: "npc-bidders" });
 }
@@ -262,6 +251,29 @@ function formatTimerLabel(value) {
   if (value === "--") return value;
   const seconds = Math.max(0, Number(value) || 0);
   return `${seconds}s`;
+}
+
+function npcBidderSlots(bidders) {
+  return Array.from({ length: 10 }, (_value, index) => {
+    const bidder = bidders[index] ?? null;
+    return {
+      index,
+      number: index + 1,
+      id: bidder?.id ?? "",
+      name: bidder?.name ?? "",
+      occupied: Boolean(bidder?.name?.trim())
+    };
+  });
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
+  }[character]));
 }
 
 function startingBidForValue(value) {
@@ -465,6 +477,7 @@ class MidnightAuctionApp extends Application {
           avatarStyle: "linear-gradient(135deg, #9a9387, #cbc4b8)"
         },
       npcBidders,
+      npcSlots: npcBidderSlots(npcBidders),
       showSettings: this._showSettings,
       settings: {
         timerMode: mode,
@@ -534,10 +547,11 @@ class MidnightAuctionApp extends Application {
     html.find("[data-action='end-item']").on("click", (event) => this._onEndItem(event));
     html.find("[data-action='npc-bid']").on("click", () => this._onNpcBid());
     html.find("[data-action='bid']").on("click", () => this._onBid());
-    html.find("[data-npc-field]").on("change", (event) => this._onNpcFieldChange(event));
+    html.find("[data-action='edit-npc']").on("click", (event) => this._onEditNpcBidder(event));
+    html.find("[data-action='remove-npc']").on("click", (event) => this._onRemoveNpcBidder(event));
     html.find("[data-setting]").on("change", (event) => this._onSettingChange(event));
-    html.find("[data-npc-index], [data-npc-drop]").on("dragover", (event) => event.preventDefault());
-    html.find("[data-npc-index], [data-npc-drop]").on("drop", (event) => this._onNpcDrop(event));
+    html.find(".ma-npc-row, [data-npc-drop]").on("dragover", (event) => event.preventDefault());
+    html.find(".ma-npc-row, [data-npc-drop]").on("drop", (event) => this._onNpcDrop(event));
     html.find("[data-round-drop]").on("dragover", (event) => event.preventDefault());
     html.find("[data-round-drop]").on("drop", (event) => this._onRoundDrop(event));
   }
@@ -852,13 +866,42 @@ class MidnightAuctionApp extends Application {
     });
   }
 
-  async _onNpcFieldChange(event) {
+  async _onEditNpcBidder(event) {
     if (!game.user.isGM) return;
     const index = Number(event.currentTarget.dataset.npcIndex);
-    const field = event.currentTarget.dataset.npcField;
     const bidders = getNpcBidders();
     if (!bidders[index]) return;
-    bidders[index][field] = event.currentTarget.value;
+
+    const currentName = bidders[index].name;
+    new Dialog({
+      title: "Edit NPC Bidder",
+      content: `<form><div class="form-group"><label>Name</label><input type="text" name="name" value="${escapeHtml(currentName)}"></div></form>`,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: "Save",
+          callback: async (html) => {
+            const name = html.find("[name='name']").val()?.trim();
+            if (!name) return;
+            bidders[index].name = name;
+            await setNpcBidders(bidders);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      default: "save"
+    }).render(true);
+  }
+
+  async _onRemoveNpcBidder(event) {
+    if (!game.user.isGM) return;
+    const index = Number(event.currentTarget.dataset.npcIndex);
+    const bidders = getNpcBidders();
+    if (!bidders[index]) return;
+    bidders.splice(index, 1);
     await setNpcBidders(bidders);
   }
 
@@ -891,9 +934,7 @@ class MidnightAuctionApp extends Application {
     event.preventDefault();
     const bidders = getNpcBidders();
     let index = Number(event.currentTarget.dataset.npcIndex);
-    if (!Number.isInteger(index)) index = bidders.findIndex((bidder) => !bidder.name?.trim());
-    if (index < 0) index = Math.min(bidders.length, 9);
-    if (!bidders[index]) return;
+    if (!Number.isInteger(index)) index = Math.min(bidders.length, 9);
 
     let data = null;
     try {
@@ -904,8 +945,10 @@ class MidnightAuctionApp extends Application {
 
     const actor = data.uuid ? await fromUuid(data.uuid) : null;
     if (!actor) return;
+    if (index < 0 || index > 9) return;
+    if (index > bidders.length) index = bidders.length;
     bidders[index] = {
-      id: bidders[index].id || randomId(),
+      id: bidders[index]?.id || randomId(),
       name: actor.name
     };
     await setNpcBidders(bidders);

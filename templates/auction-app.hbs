@@ -97,10 +97,16 @@
     <section class="ma-npc-panel" data-npc-drop>
       <div class="ma-panel-title">Drop Auction Bidders here</div>
       <div class="ma-npc-list">
-        {{#each npcBidders}}
-        <div class="ma-npc-row" data-npc-index="{{@index}}">
+        {{#each npcSlots}}
+        <div class="ma-npc-row {{#unless occupied}}is-empty{{/unless}}" data-npc-index="{{index}}">
           <span>{{number}}</span>
-          <input type="text" value="{{name}}" data-npc-field="name" data-npc-index="{{@index}}">
+          {{#if occupied}}
+          <strong>{{name}}</strong>
+          <button type="button" data-action="edit-npc" data-npc-index="{{index}}" title="Edit bidder"><i class="fas fa-pen"></i></button>
+          <button type="button" data-action="remove-npc" data-npc-index="{{index}}" title="Remove bidder"><i class="fas fa-times"></i></button>
+          {{else}}
+          <em>Drop bidder here</em>
+          {{/if}}
         </div>
         {{/each}}
       </div>
