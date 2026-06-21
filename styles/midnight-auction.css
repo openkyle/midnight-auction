@@ -3,9 +3,11 @@
 }
 
 .midnight-auction {
-  --ma-line: rgba(0, 0, 0, 0.18);
+  --ma-line: rgba(0, 0, 0, 0.2);
   --ma-soft: rgba(0, 0, 0, 0.04);
+  --ma-panel: rgba(255, 255, 255, 0.22);
   --ma-highlight: #7a4f13;
+  --ma-rule: rgba(120, 38, 30, 0.75);
   display: grid;
   gap: 12px;
   padding: 12px;
@@ -47,7 +49,7 @@
 .ma-loading-bar i {
   display: block;
   height: 100%;
-  background: #7a4f13;
+  background: var(--ma-highlight);
   transition: width 140ms ease;
 }
 
@@ -82,15 +84,33 @@
   color: #000000;
 }
 
-.ma-stage {
-  position: relative;
-  aspect-ratio: 16 / 9;
-  height: clamp(92px, 15vw, 150px);
-  max-height: 150px;
-  overflow: hidden;
+.ma-auction-board {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.1fr) minmax(280px, 0.9fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.ma-hero-card,
+.ma-bids-card,
+.ma-lot-board,
+.ma-wallet,
+.ma-timer,
+.ma-highest-card,
+.ma-price,
+.ma-round,
+.ma-npc-panel,
+.ma-settings-panel {
   border: 1px solid var(--ma-line);
   border-radius: 6px;
   background: var(--ma-soft);
+}
+
+.ma-hero-card {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  min-height: 220px;
 }
 
 .ma-scene {
@@ -103,83 +123,85 @@
 .ma-stage-shade {
   position: absolute;
   inset: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  padding: 12px;
-  background: linear-gradient(180deg, rgba(10, 8, 12, 0.1), rgba(10, 8, 12, 0.82));
+  display: grid;
+  align-content: center;
+  padding: 24px;
+  background: linear-gradient(90deg, rgba(16, 10, 8, 0.78), rgba(16, 10, 8, 0.18));
 }
 
-.ma-stage h1,
-.ma-current h2,
-.ma-log h3,
-.ma-round h3 {
+.ma-stage-shade h1,
+.ma-item-detail h2,
+.ma-bids-card h3 {
   margin: 0;
 }
 
-.ma-stage p {
-  margin: 4px 0 0;
-  color: rgba(255, 255, 255, 0.86);
-}
-
-.ma-stage h1 {
-  font-size: 24px;
+.ma-stage-shade h1 {
+  max-width: 360px;
+  color: #ffffff;
+  font-size: 42px;
   line-height: 1.1;
-  color: #ffffff;
 }
 
-.ma-timer {
-  min-width: 112px;
-  text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 6px;
-  padding: 10px;
-  background: rgba(0, 0, 0, 0.48);
+.ma-stage-shade p {
+  max-width: 360px;
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 2px solid var(--ma-rule);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
-.ma-timer span,
-.ma-price span,
-.ma-wallet span,
-.ma-eyebrow {
-  display: block;
-  font-size: 11px;
-  line-height: 1.2;
-  text-transform: uppercase;
-  color: rgba(0, 0, 0, 0.62);
+.ma-bids-card {
+  min-height: 220px;
+  padding: 18px;
+  background: var(--ma-panel);
 }
 
-.ma-stage .ma-timer span {
-  color: rgba(255, 255, 255, 0.78);
+.ma-bids-card h3 {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--ma-rule);
+  font-size: 26px;
 }
 
-.ma-timer strong {
-  display: block;
-  margin-top: 2px;
-  color: #ffffff;
-  font-size: 30px;
-  line-height: 1;
-}
-
-.ma-timer.is-urgent strong {
-  color: #ff6b5f;
-}
-
-.ma-current {
+.ma-bids-card ol {
   display: grid;
-  grid-template-columns: 120px 1fr 150px;
+  gap: 8px;
+  max-height: 210px;
+  margin: 14px 0 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.ma-bids-card li {
+  padding: 6px 0;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.ma-bids-card p {
+  margin: 14px 0 0;
+  opacity: 0.72;
+  font-size: 16px;
+}
+
+.ma-lot-board {
+  display: grid;
+  grid-template-columns: 150px minmax(220px, 1fr) 170px 170px;
   gap: 12px;
   align-items: stretch;
-  padding: 12px;
-  border: 1px solid var(--ma-line);
-  border-radius: 6px;
-  background: var(--ma-soft);
+  padding: 14px;
+  background: var(--ma-panel);
 }
 
 .ma-item-image-wrap {
-  min-height: 120px;
-  border-radius: 4px;
+  min-height: 150px;
   overflow: hidden;
+  border: 1px solid var(--ma-line);
+  border-radius: 4px;
   background: var(--ma-soft);
 }
 
@@ -190,47 +212,166 @@
   display: block;
 }
 
+.ma-item-detail {
+  min-width: 0;
+  padding: 2px 4px;
+}
+
+.ma-eyebrow,
+.ma-price span,
+.ma-wallet span,
+.ma-timer span,
+.ma-highest-card span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  color: rgba(0, 0, 0, 0.62);
+  font-weight: 700;
+}
+
+.ma-item-detail h2 {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ma-rule);
+  font-size: 26px;
+  line-height: 1.1;
+}
+
 .ma-description {
-  max-height: 142px;
+  max-height: 110px;
   overflow: auto;
+  font-size: 15px;
 }
 
 .ma-description p {
-  margin-top: 6px;
+  margin: 8px 0 0;
 }
 
+.ma-highest-card,
 .ma-price,
-.ma-wallet {
+.ma-wallet,
+.ma-timer {
   display: grid;
   align-content: center;
   justify-items: center;
   text-align: center;
-  border-radius: 6px;
-  border: 1px solid var(--ma-line);
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--ma-panel);
+}
+
+.ma-highest-card {
+  gap: 8px;
+  padding: 10px;
+}
+
+.ma-bidder-avatar {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border: 3px solid #9b1a73;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+.ma-highest-card strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  text-transform: uppercase;
 }
 
 .ma-price strong,
 .ma-wallet strong {
   color: var(--ma-highlight);
-  font-size: 28px;
+  font-size: 34px;
   line-height: 1.1;
 }
 
 .ma-price small {
   opacity: 0.72;
+  font-size: 14px;
 }
 
-.ma-toolbar,
-.ma-player-controls {
+.ma-action-row {
+  display: grid;
+  grid-template-columns: 160px minmax(240px, 1fr) 150px;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.ma-wallet {
+  min-height: 72px;
+}
+
+.ma-bid {
+  position: relative;
+  min-height: 72px;
+  overflow: hidden;
+  border: 1px solid var(--ma-line);
+  border-radius: 4px;
+  font-size: 28px;
+  font-weight: 800;
+  background: var(--ma-panel);
+}
+
+.ma-bid-progress {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: rgba(214, 76, 91, 0.72);
+  transition: width 260ms linear;
+}
+
+.ma-bid strong {
+  position: relative;
+  z-index: 1;
+}
+
+.ma-bid:disabled {
+  opacity: 0.55;
+}
+
+.ma-timer {
+  min-height: 72px;
+  background:
+    linear-gradient(rgba(30, 12, 10, 0.62), rgba(30, 12, 10, 0.62)),
+    url("../../../ui/parchment.jpg") repeat;
+}
+
+.ma-timer span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.ma-timer strong {
+  display: block;
+  margin-top: 4px;
+  color: #ffffff;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.ma-timer.is-urgent strong {
+  color: #ff6b5f;
+}
+
+.ma-gm-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.ma-toolbar {
   display: grid;
   grid-template-columns: 42px repeat(3, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
 }
 
-.ma-player-controls {
-  grid-template-columns: 140px 1fr;
+.ma-toolbar button:disabled {
+  opacity: 0.55;
 }
 
 .ma-settings-panel {
@@ -238,9 +379,6 @@
   grid-template-columns: repeat(6, minmax(86px, 1fr));
   gap: 8px;
   padding: 8px 10px;
-  border: 1px solid var(--ma-line);
-  border-radius: 6px;
-  background: var(--ma-soft);
 }
 
 .ma-settings-panel label {
@@ -254,9 +392,6 @@
 }
 
 .ma-npc-panel {
-  border: 1px solid var(--ma-line);
-  border-radius: 6px;
-  background: var(--ma-soft);
   padding: 8px 10px;
 }
 
@@ -296,7 +431,7 @@
 .ma-round-tabs {
   display: flex;
   gap: 2px;
-  margin-top: 10px;
+  margin-top: 4px;
   padding: 0 8px;
   border-bottom: 1px solid var(--ma-line);
   overflow-x: auto;
@@ -306,11 +441,11 @@
   flex: 0 0 auto;
   position: relative;
   top: 1px;
+  min-width: 100px;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   border-bottom: 1px solid var(--ma-line);
   opacity: 0.82;
-  min-width: 100px;
 }
 
 .ma-round-tabs button.is-selected {
@@ -325,30 +460,6 @@
   font-size: 10px;
   text-transform: uppercase;
   opacity: 0.72;
-}
-
-.ma-toolbar button:disabled,
-.ma-bid:disabled {
-  opacity: 0.55;
-}
-
-.ma-bid {
-  min-height: 56px;
-  flex: 1;
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.ma-wallet {
-  width: 140px;
-  min-height: 56px;
-}
-
-.ma-round,
-.ma-log {
-  border: 1px solid var(--ma-line);
-  border-radius: 6px;
-  background: var(--ma-soft);
 }
 
 .ma-round {
@@ -421,51 +532,35 @@
   font-weight: 700;
 }
 
-.ma-log {
-  padding: 10px;
-}
-
-.ma-log ol {
-  display: grid;
-  gap: 6px;
-  margin: 8px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ma-log li {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.ma-empty,
-.ma-log p {
+.ma-empty {
   margin: 8px 0 0;
   opacity: 0.72;
 }
 
-@media (max-width: 720px) {
-  .ma-current {
-    grid-template-columns: 92px 1fr;
+@media (max-width: 860px) {
+  .ma-auction-board,
+  .ma-lot-board,
+  .ma-action-row {
+    grid-template-columns: 1fr;
   }
 
-  .ma-price {
-    grid-column: 1 / -1;
-    min-height: 72px;
+  .ma-hero-card {
+    min-height: 180px;
   }
 
-  .ma-stage-shade,
-  .ma-player-controls {
-    align-items: stretch;
-    flex-direction: column;
+  .ma-stage-shade h1 {
+    font-size: 32px;
   }
 
-  .ma-wallet {
-    width: 100%;
+  .ma-item-image-wrap {
+    min-height: 120px;
+  }
+
+  .ma-highest-card,
+  .ma-price,
+  .ma-wallet,
+  .ma-timer {
+    min-height: 84px;
   }
 
   .ma-round header {
@@ -476,7 +571,6 @@
   .ma-npc-list,
   .ma-npc-row,
   .ma-toolbar,
-  .ma-player-controls,
   .ma-settings-panel,
   .ma-drop-row {
     grid-template-columns: 1fr;

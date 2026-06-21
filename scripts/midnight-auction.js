@@ -25,6 +25,7 @@ function defaultState() {
     activeItem: null,
     currentPrice: 0,
     endsAt: null,
+    timerStartedAt: null,
     winnerUserId: null,
     winnerActorUuid: null,
     npcBidStreak: {
@@ -233,6 +234,36 @@ function bidRows(state) {
   return (state.bids ?? []).slice(0, 8);
 }
 
+function timerProgress(state, timeLeft) {
+  if (state.status !== "item" || !state.endsAt || !state.timerStartedAt) return 0;
+  const total = Math.max(1, state.endsAt - state.timerStartedAt);
+  const elapsed = Math.max(0, Date.now() - state.timerStartedAt);
+  return Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
+}
+
+function bidderAvatar(name) {
+  const hue = [...String(name || "No bids")].reduce((total, char) => total + char.charCodeAt(0), 0) % 360;
+  return `linear-gradient(135deg, hsl(${hue}, 72%, 46%), hsl(${(hue + 70) % 360}, 72%, 62%))`;
+}
+
+function bidSummaryRows(state, item) {
+  const bids = bidRows(state);
+  return bids.map((bid, index) => {
+    const previous = bids[index + 1]?.amount ?? Number(item?.startingPrice) ?? 0;
+    const increase = previous > 0 ? Math.round(((bid.amount - previous) / previous) * 100) : 0;
+    return {
+      ...bid,
+      summary: `${bid.bidderName} made a bid for ${bid.amount} gp${increase > 0 ? `, raising it by ${increase}%` : ""}.`
+    };
+  });
+}
+
+function formatTimerLabel(value) {
+  if (value === "--") return value;
+  const seconds = Math.max(0, Number(value) || 0);
+  return `${seconds}s`;
+}
+
 function startingBidForValue(value) {
   const percent = Math.max(0, Number(game.settings.get(MODULE_ID, STARTING_BID_PERCENT_SETTING)) || 0);
   return Math.floor((Number(value) || 0) * (percent / 100));
@@ -398,6 +429,8 @@ class MidnightAuctionApp extends Application {
       number: index + 1
     }));
     const mode = timerMode();
+    const latestBids = bidSummaryRows(state, activeItem);
+    const highestBid = latestBids[0] ?? null;
 
     return {
       isGM: game.user.isGM,
@@ -406,6 +439,8 @@ class MidnightAuctionApp extends Application {
       sceneImage: activeItem?.sceneImg || images[state.status] || images.idle,
       timerLabel: state.status === "item" ? "Seconds Left" : "Timer",
       timeLeft: state.status === "item" ? timeLeft : "--",
+      timeDisplay: state.status === "item" ? formatTimerLabel(timeLeft) : "--",
+      timerProgress: timerProgress(state, timeLeft),
       urgent: state.status === "item" && timeLeft <= 3,
       item,
       itemDescription: activeItem ? await TextEditor.enrichHTML(activeItem.description || "", { async: true }) : "<p>The velvet curtain has not lifted yet.</p>",
@@ -415,7 +450,20 @@ class MidnightAuctionApp extends Application {
       gold,
       canBid: Boolean(activeItem && state.status === "item" && goldActor && gold >= nextBid),
       canNpcBid: Boolean(activeItem && state.status === "item" && npcBidders.some((bidder) => bidder.name?.trim())),
-      bids: bidRows(state),
+      bids: latestBids,
+      highestBidder: highestBid
+        ? {
+          name: highestBid.bidderName,
+          amount: highestBid.amount,
+          initial: highestBid.bidderName.slice(0, 1).toUpperCase(),
+          avatarStyle: bidderAvatar(highestBid.bidderName)
+        }
+        : {
+          name: "No bids",
+          amount: 0,
+          initial: "-",
+          avatarStyle: "linear-gradient(135deg, #9a9387, #cbc4b8)"
+        },
       npcBidders,
       showSettings: this._showSettings,
       settings: {
@@ -623,6 +671,7 @@ class MidnightAuctionApp extends Application {
       activeItem: null,
       currentPrice: 0,
       endsAt: null,
+      timerStartedAt: null,
       winnerUserId: null,
       winnerActorUuid: null,
       completedItemIds: [],
@@ -666,13 +715,15 @@ class MidnightAuctionApp extends Application {
 
   async _startLot(round, item, { completedItemIds = getState().completedItemIds ?? [], message = null } = {}) {
     const startingPrice = Number(item.startingPrice) || 0;
+    const now = Date.now();
     await setState({
       status: "item",
       roundId: round.id,
       itemId: item.id,
       activeItem: lotSnapshot(item),
       currentPrice: startingPrice,
-      endsAt: Date.now() + timerSeconds() * 1000,
+      endsAt: now + timerSeconds() * 1000,
+      timerStartedAt: now,
       winnerUserId: null,
       winnerActorUuid: null,
       npcBidStreak: {
@@ -722,6 +773,7 @@ class MidnightAuctionApp extends Application {
         activeItem: null,
         currentPrice: 0,
         endsAt: null,
+        timerStartedAt: null,
         completedItemIds,
         message: `${message} ${round.title || `Round ${round.number}`} is complete.`
       });
@@ -754,6 +806,7 @@ class MidnightAuctionApp extends Application {
       ? foundry.utils.deepClone(state.npcBidStreak)
       : { itemId: state.itemId, count: 0, bidderId: null };
     const amount = nextNpcBidFor(item, state);
+    const now = Date.now();
     const focused = bidders.find((bidder) => bidder.id === streak.bidderId);
     const bidder = streak.count >= 3 && focused
       ? focused
@@ -764,14 +817,15 @@ class MidnightAuctionApp extends Application {
       bidderName: bidder.name,
       npcBidderId: bidder.id,
       amount,
-      time: Date.now(),
+      time: now,
       isNpc: true
     };
 
     const nextState = {
       ...state,
       currentPrice: amount,
-      endsAt: bidResetsTimer() ? Date.now() + timerSeconds() * 1000 : state.endsAt,
+      endsAt: bidResetsTimer() ? now + timerSeconds() * 1000 : state.endsAt,
+      timerStartedAt: bidResetsTimer() ? now : state.timerStartedAt,
       winnerUserId: null,
       winnerActorUuid: null,
       npcBidStreak: {
@@ -874,18 +928,20 @@ async function processBid(data) {
     return;
   }
 
+  const now = Date.now();
   const bid = {
     bidderName: bidder.name,
     userId: bidder.id,
     actorUuid: bidderActor.uuid,
     amount,
-    time: Date.now()
+    time: now
   };
 
   const nextState = {
     ...state,
     currentPrice: amount,
-    endsAt: bidResetsTimer() ? Date.now() + timerSeconds() * 1000 : state.endsAt,
+    endsAt: bidResetsTimer() ? now + timerSeconds() * 1000 : state.endsAt,
+    timerStartedAt: bidResetsTimer() ? now : state.timerStartedAt,
     winnerUserId: bidder.id,
     winnerActorUuid: bidderActor.uuid,
     bids: [bid, ...(state.bids ?? [])].slice(0, 20),
@@ -899,7 +955,8 @@ async function processBid(data) {
 function currentAuctionImages() {
   const catalog = getCatalog();
   const state = getState();
-  const { item } = activeLot(catalog, state);
+  const { item: catalogItem } = activeLot(catalog, state);
+  const item = catalogItem ?? state.activeItem;
   const images = sceneImages();
   return [
     item?.sceneImg || images[state.status] || images.idle,
