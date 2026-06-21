@@ -17,8 +17,8 @@ A tiny Foundry VTT v11 module for running quick, dramatic auctions in DnD5e.
 - Drag items from the sidebar onto the selected round's drop bar to add lots.
 - Set each lot's name, image, scene image, description, starting price, and bid increment.
 - Click **Start Round**, then **Start** on a lot.
-- Open **NPC Bidders** to edit 10 house bidders, or drag actors from the sidebar onto those slots. Set **Auto to** when a bidder should keep bidding up to a secret maximum price.
-- Use **NPC Bid** when the room should outbid the players. Repeated NPC bids on a lot begin favoring one bidder to simulate someone really wanting it.
+- Open **NPC Bidders** to edit 10 placeholder bidders, or drag actors from the sidebar onto those name slots.
+- Use **NPC Bid** when the room should outbid the players. Repeated NPC bids on a lot settle into one bidder to simulate the rest of the room dropping out.
 - Players open the floating gavel icon or the **Open Midnight Auction** macro and press the bid button.
 - Each accepted bid resets the timer to 10 seconds by default.
 - When the timer reaches zero, the GM client closes the lot and deducts the winning gold from the winner's assigned character.

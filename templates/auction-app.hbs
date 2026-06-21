@@ -42,10 +42,8 @@
       <div class="ma-npc-list">
         {{#each npcBidders}}
         <div class="ma-npc-row" data-npc-index="{{@index}}">
-          <img src="{{img}}" alt="{{name}}">
-          <label>Name <input type="text" value="{{name}}" data-npc-field="name" data-npc-index="{{@index}}"></label>
-          <label>Image <input type="text" value="{{img}}" data-npc-field="img" data-npc-index="{{@index}}"></label>
-          <label>Auto to <input type="number" min="0" value="{{maxBid}}" data-npc-field="maxBid" data-npc-index="{{@index}}"></label>
+          <span>{{number}}</span>
+          <input type="text" value="{{name}}" data-npc-field="name" data-npc-index="{{@index}}">
         </div>
         {{/each}}
       </div>

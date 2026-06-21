@@ -48,9 +48,7 @@ function defaultNpcBidders() {
     "Old Crown"
   ].map((name) => ({
     id: randomId(),
-    name,
-    img: "icons/svg/mystery-man.svg",
-    maxBid: 0
+    name
   }));
 }
 
@@ -108,9 +106,7 @@ function getNpcBidders() {
   }
   return normalized.map((bidder, index) => ({
     id: bidder.id || randomId(),
-    name: bidder.name || `NPC Bidder ${index + 1}`,
-    img: bidder.img || "icons/svg/mystery-man.svg",
-    maxBid: Math.max(0, Number(bidder.maxBid) || 0)
+    name: bidder.name || `NPC Bidder ${index + 1}`
   }));
 }
 
@@ -358,7 +354,10 @@ class MidnightAuctionApp extends Application {
     const gold = goldActor ? getCurrencyGp(goldActor) : 0;
     const nextBid = nextBidFor(activeItem, state);
     const selectedRound = this._selectedRound(catalog, state);
-    const npcBidders = getNpcBidders();
+    const npcBidders = getNpcBidders().map((bidder, index) => ({
+      ...bidder,
+      number: index + 1
+    }));
 
     return {
       isGM: game.user.isGM,
@@ -650,13 +649,11 @@ class MidnightAuctionApp extends Application {
       : { itemId: state.itemId, count: 0, bidderId: null };
     const amount = nextNpcBidFor(item, state);
     const focused = bidders.find((bidder) => bidder.id === streak.bidderId);
-    const guaranteed = bidders.filter((bidder) => Number(bidder.maxBid) >= amount);
-    const focusedGuaranteed = focused && Number(focused.maxBid) >= amount ? focused : null;
-    const bidder = focusedGuaranteed
-      || (guaranteed.length ? guaranteed[Math.floor(Math.random() * guaranteed.length)] : null)
-      || (streak.count >= 2 && focused ? focused : bidders[Math.floor(Math.random() * bidders.length)]);
+    const bidder = streak.count >= 3 && focused
+      ? focused
+      : bidders[Math.floor(Math.random() * bidders.length)];
     const nextCount = streak.count + 1;
-    const focusId = Number(bidder.maxBid) >= amount || nextCount >= 3 ? bidder.id : streak.bidderId;
+    const focusId = nextCount >= 3 ? bidder.id : streak.bidderId;
     const bid = {
       bidderName: bidder.name,
       npcBidderId: bidder.id,
@@ -726,8 +723,7 @@ class MidnightAuctionApp extends Application {
     const field = event.currentTarget.dataset.npcField;
     const bidders = getNpcBidders();
     if (!bidders[index]) return;
-    if (field === "maxBid") bidders[index][field] = Math.max(0, Number(event.currentTarget.value) || 0);
-    else bidders[index][field] = event.currentTarget.value;
+    bidders[index][field] = event.currentTarget.value;
     await setNpcBidders(bidders);
   }
 
@@ -749,9 +745,7 @@ class MidnightAuctionApp extends Application {
     if (!actor) return;
     bidders[index] = {
       id: bidders[index].id || randomId(),
-      name: actor.name,
-      img: actor.img || "icons/svg/mystery-man.svg",
-      maxBid: bidders[index].maxBid || 0
+      name: actor.name
     };
     await setNpcBidders(bidders);
   }
