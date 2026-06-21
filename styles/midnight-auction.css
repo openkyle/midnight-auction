@@ -223,10 +223,14 @@
 
 .ma-toolbar,
 .ma-player-controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
+}
+
+.ma-player-controls {
+  grid-template-columns: 140px 1fr;
 }
 
 .ma-npc-panel {
@@ -236,9 +240,9 @@
   padding: 8px 10px;
 }
 
-.ma-npc-panel summary {
-  cursor: pointer;
+.ma-panel-title {
   font-weight: 700;
+  text-align: center;
 }
 
 .ma-npc-list {
@@ -298,7 +302,6 @@
 }
 
 .ma-toolbar button:disabled,
-.ma-lot-actions button:disabled,
 .ma-bid:disabled {
   opacity: 0.55;
 }
@@ -332,100 +335,48 @@
 
 .ma-round header {
   display: grid;
-  grid-template-columns: auto minmax(220px, 1fr);
+  grid-template-columns: 180px minmax(220px, 1fr);
   gap: 12px;
-  align-items: center;
+  align-items: stretch;
   padding: 10px;
-  border-bottom: 1px solid var(--ma-line);
-}
-
-.ma-description-field {
-  font-size: 11px;
 }
 
 .ma-round-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 6px;
 }
 
 .ma-drop-zone {
-  min-height: 34px;
+  min-height: 88px;
   display: grid;
-  place-items: center;
+  align-content: start;
+  gap: 6px;
   border: 1px dashed var(--ma-line);
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.2);
-  font-size: 12px;
-  opacity: 0.82;
-}
-
-.ma-lots {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-}
-
-.ma-lot {
-  display: grid;
-  grid-template-columns: 58px 1fr auto;
-  gap: 10px;
-  align-items: start;
   padding: 8px;
-  border: 1px solid var(--ma-line);
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
 }
 
-.ma-lot.is-active {
+.ma-drop-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ma-drop-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto auto 28px;
+  gap: 6px;
+  align-items: center;
+  padding: 5px;
+  border: 1px solid var(--ma-line);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.ma-drop-row.is-active {
   border-color: var(--ma-highlight);
   box-shadow: 0 0 0 1px rgba(122, 79, 19, 0.18);
-}
-
-.ma-lot img {
-  width: 58px;
-  height: 58px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
-.ma-lot-fields {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(82px, 1fr));
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.ma-lot-fields-wide {
-  grid-template-columns: minmax(150px, 1.2fr) minmax(160px, 1.4fr) minmax(160px, 1.4fr) 80px 90px;
-}
-
-.ma-lot-fields label {
-  font-size: 11px;
-}
-
-.ma-lot-fields input,
-.ma-description-field textarea {
-  width: 100%;
-}
-
-.ma-lot-fields input {
-  height: 26px;
-}
-
-.ma-description-field {
-  display: block;
-  margin-top: 6px;
-}
-
-.ma-description-field textarea {
-  min-height: 54px;
-  resize: vertical;
-}
-
-.ma-lot-actions {
-  display: grid;
-  gap: 6px;
 }
 
 .ma-delete-item {
@@ -481,26 +432,16 @@
     width: 100%;
   }
 
-  .ma-lot {
-    grid-template-columns: 44px 1fr;
-  }
-
-  .ma-lot-actions {
-    grid-column: 1 / -1;
-    display: flex;
-  }
-
-  .ma-lot-fields-wide {
-    grid-template-columns: 1fr;
-  }
-
   .ma-round header {
     align-items: stretch;
     grid-template-columns: 1fr;
   }
 
   .ma-npc-list,
-  .ma-npc-row {
+  .ma-npc-row,
+  .ma-toolbar,
+  .ma-player-controls,
+  .ma-drop-row {
     grid-template-columns: 1fr;
   }
 

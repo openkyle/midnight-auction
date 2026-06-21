@@ -427,10 +427,9 @@ class MidnightAuctionApp extends Application {
     html.find("[data-action='end-item']").on("click", (event) => this._onEndItem(event));
     html.find("[data-action='npc-bid']").on("click", () => this._onNpcBid());
     html.find("[data-action='bid']").on("click", () => this._onBid());
-    html.find("[data-field]").on("change", (event) => this._onFieldChange(event));
     html.find("[data-npc-field]").on("change", (event) => this._onNpcFieldChange(event));
-    html.find("[data-npc-index]").on("dragover", (event) => event.preventDefault());
-    html.find("[data-npc-index]").on("drop", (event) => this._onNpcDrop(event));
+    html.find("[data-npc-index], [data-npc-drop]").on("dragover", (event) => event.preventDefault());
+    html.find("[data-npc-index], [data-npc-drop]").on("drop", (event) => this._onNpcDrop(event));
     html.find("[data-round-drop]").on("dragover", (event) => event.preventDefault());
     html.find("[data-round-drop]").on("drop", (event) => this._onRoundDrop(event));
   }
@@ -692,31 +691,6 @@ class MidnightAuctionApp extends Application {
     });
   }
 
-  async _onFieldChange(event) {
-    if (!game.user.isGM) return;
-    const field = event.currentTarget.dataset.field;
-    const roundId = event.currentTarget.dataset.roundId;
-    const itemId = event.currentTarget.dataset.itemId;
-    const catalog = getCatalog();
-
-    if (roundId && !itemId) {
-      const round = findRound(catalog, roundId);
-      if (!round) return;
-      if (field === "number") round.number = Math.max(1, Number(event.currentTarget.value) || 1);
-      if (field === "title") round.title = event.currentTarget.value.trim() || `Round ${round.number || 1}`;
-    }
-
-    if (itemId) {
-      const { item } = findLot(catalog, itemId);
-      if (!item) return;
-      if (["startingPrice", "increment"].includes(field)) item[field] = Math.max(field === "increment" ? 1 : 0, Number(event.currentTarget.value) || 0);
-      if (["name", "img", "sceneImg", "description"].includes(field)) item[field] = event.currentTarget.value;
-    }
-
-    catalog.rounds.sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0));
-    await setCatalog(catalog);
-  }
-
   async _onNpcFieldChange(event) {
     if (!game.user.isGM) return;
     const index = Number(event.currentTarget.dataset.npcIndex);
@@ -730,8 +704,10 @@ class MidnightAuctionApp extends Application {
   async _onNpcDrop(event) {
     if (!game.user.isGM) return;
     event.preventDefault();
-    const index = Number(event.currentTarget.dataset.npcIndex);
     const bidders = getNpcBidders();
+    let index = Number(event.currentTarget.dataset.npcIndex);
+    if (!Number.isInteger(index)) index = bidders.findIndex((bidder) => !bidder.name?.trim());
+    if (index < 0) index = Math.min(bidders.length, 9);
     if (!bidders[index]) return;
 
     let data = null;

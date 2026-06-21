@@ -37,8 +37,8 @@
       <button type="button" data-action="stop-auction"><i class="fas fa-stop"></i> End Auction</button>
     </div>
 
-    <details class="ma-npc-panel">
-      <summary>NPC Bidders</summary>
+    <section class="ma-npc-panel" data-npc-drop>
+      <div class="ma-panel-title">Drop Auction Bidders here</div>
       <div class="ma-npc-list">
         {{#each npcBidders}}
         <div class="ma-npc-row" data-npc-index="{{@index}}">
@@ -47,7 +47,7 @@
         </div>
         {{/each}}
       </div>
-    </details>
+    </section>
 
     <nav class="ma-round-tabs" aria-label="Auction rounds">
       {{#each rounds}}
@@ -65,36 +65,21 @@
           <button type="button" data-action="end-round" data-round-id="{{selectedRound.id}}">End Round</button>
         </div>
         <div class="ma-drop-zone" data-round-drop="{{selectedRound.id}}">
-          Drop auction items here
+          <div class="ma-panel-title">Drop auction items here</div>
+          <div class="ma-drop-list">
+            {{#each selectedRound.items}}
+            <div class="ma-drop-row {{#if active}}is-active{{/if}}">
+              <span>{{name}}</span>
+              <button type="button" data-action="start-item" data-item-id="{{id}}">Start</button>
+              <button type="button" data-action="end-item" data-item-id="{{id}}">End</button>
+              <button class="ma-delete-item" type="button" data-action="delete-item" data-item-id="{{id}}" title="Remove lot">X</button>
+            </div>
+            {{else}}
+            <p class="ma-empty">No lots yet.</p>
+            {{/each}}
+          </div>
         </div>
       </header>
-
-      <div class="ma-lots">
-        {{#each selectedRound.items}}
-        <div class="ma-lot {{#if active}}is-active{{/if}}">
-          <img src="{{img}}" alt="{{name}}">
-          <div class="ma-lot-main">
-            <div class="ma-lot-fields ma-lot-fields-wide">
-              <label>Name <input type="text" value="{{name}}" data-field="name" data-item-id="{{id}}"></label>
-              <label>Item Image <input type="text" value="{{img}}" data-field="img" data-item-id="{{id}}"></label>
-              <label>Scene Image <input type="text" value="{{sceneImg}}" data-field="sceneImg" data-item-id="{{id}}"></label>
-              <label>Start <input type="number" min="0" value="{{startingPrice}}" data-field="startingPrice" data-item-id="{{id}}"></label>
-              <label>Increment <input type="number" min="1" value="{{increment}}" data-field="increment" data-item-id="{{id}}"></label>
-            </div>
-            <label class="ma-description-field">Description
-              <textarea data-field="description" data-item-id="{{id}}">{{description}}</textarea>
-            </label>
-          </div>
-          <div class="ma-lot-actions">
-            <button type="button" data-action="start-item" data-item-id="{{id}}">Start</button>
-            <button type="button" data-action="end-item" data-item-id="{{id}}">End</button>
-            <button class="ma-delete-item" type="button" data-action="delete-item" data-item-id="{{id}}" title="Remove lot">X</button>
-          </div>
-        </div>
-        {{else}}
-        <p class="ma-empty">No lots in this round yet. Drop items onto the bar above.</p>
-        {{/each}}
-      </div>
     </article>
     {{/if}}
   </section>
