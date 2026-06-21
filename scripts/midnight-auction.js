@@ -250,6 +250,11 @@ function timerMode() {
   return String(game.settings.get(MODULE_ID, TIMER_SETTING) || "10");
 }
 
+function selectedTimerMode() {
+  const mode = timerMode();
+  return mode === "sudden" ? "10" : mode;
+}
+
 function timerSeconds() {
   const mode = timerMode();
   if (mode === "sudden") return Math.max(1, Number(game.settings.get(MODULE_ID, SUDDEN_DEATH_SECONDS_SETTING)) || 10);
@@ -635,12 +640,12 @@ class MidnightAuctionApp extends Application {
       settings: {
         timerMode: mode,
         timerOptions: [
-          { value: "5", label: "5 seconds", selected: mode === "5" },
-          { value: "10", label: "10 seconds", selected: mode === "10" },
-          { value: "15", label: "15 seconds", selected: mode === "15" },
-          { value: "30", label: "30 seconds", selected: mode === "30" },
-          { value: "sudden", label: "Sudden death", selected: mode === "sudden" }
+          { value: "5", label: "5 seconds", selected: selectedTimerMode() === "5" },
+          { value: "10", label: "10 seconds", selected: selectedTimerMode() === "10" },
+          { value: "15", label: "15 seconds", selected: selectedTimerMode() === "15" },
+          { value: "30", label: "30 seconds", selected: selectedTimerMode() === "30" }
         ],
+        suddenDeath: mode === "sudden",
         suddenDeathSeconds: Number(game.settings.get(MODULE_ID, SUDDEN_DEATH_SECONDS_SETTING)) || 10,
         previewEnabled: previewEnabled(),
         previewSeconds: previewSeconds(),
@@ -704,7 +709,7 @@ class MidnightAuctionApp extends Application {
     html.find("[data-action='stop-auction']").on("click", () => this._onStopAuction());
     html.find("[data-action='toggle-settings']").on("click", () => this._onToggleSettings());
     html.find("[data-action='toggle-bidders']").on("click", () => this._onToggleBidders());
-    html.find("[data-action='pick-audio']").on("click", (event) => this._onPickAudio(event));
+    html.find("[data-action='pick-file']").on("click", (event) => this._onPickFile(event));
     html.find("[data-action='save-auction']").on("click", () => this._onSaveAuction());
     html.find("[data-action='new-auction']").on("click", () => this._onNewAuction());
     html.find("[data-action='load-auction']").on("click", (event) => this._onLoadAuction(event));
@@ -745,6 +750,8 @@ class MidnightAuctionApp extends Application {
       if (["preview", "item"].includes(state.status) && state.endsAt && Date.now() >= state.endsAt && game.user.isGM && isPrimaryActiveGM() && !this._ending) {
         if (state.status === "preview") this._beginLotBidding(state);
         else this._onEndItem({ currentTarget: { dataset: { itemId: state.itemId } } });
+      } else if (this._hasFocusedField()) {
+        return;
       } else {
         this.render(false);
       }
@@ -775,11 +782,17 @@ class MidnightAuctionApp extends Application {
     this.render(false);
   }
 
-  _onPickAudio(event) {
+  _hasFocusedField() {
+    const element = document.activeElement;
+    return Boolean(element?.closest?.(".midnight-auction") && element.matches("input, select, textarea"));
+  }
+
+  _onPickFile(event) {
     if (!game.user.isGM) return;
     const setting = event.currentTarget.dataset.setting;
+    const type = event.currentTarget.dataset.fileType || "any";
     new FilePicker({
-      type: "audio",
+      type,
       current: game.settings.get(MODULE_ID, setting) || "",
       callback: async (path) => {
         await game.settings.set(MODULE_ID, setting, path);
@@ -1272,6 +1285,13 @@ class MidnightAuctionApp extends Application {
   async _onSettingChange(event) {
     if (!game.user.isGM) return;
     const setting = event.currentTarget.dataset.setting;
+    if (setting === "suddenDeath") {
+      await game.settings.set(MODULE_ID, TIMER_SETTING, event.currentTarget.checked ? "sudden" : selectedTimerMode());
+      renderAuctionApps();
+      game.socket.emit(SOCKET, { type: "settings" });
+      return;
+    }
+
     const numericSettings = new Set([
       SUDDEN_DEATH_SECONDS_SETTING,
       STARTING_BID_PERCENT_SETTING,
