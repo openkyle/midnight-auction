@@ -14,6 +14,30 @@
   padding: 12px;
 }
 
+#midnight-auction-float {
+  position: fixed;
+  left: 118px;
+  bottom: 18px;
+  z-index: 100;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid rgba(232, 191, 90, 0.62);
+  border-radius: 6px;
+  background: rgba(31, 22, 25, 0.94);
+  color: #fff3d3;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.36);
+  font-weight: 700;
+}
+
+#midnight-auction-float:hover {
+  border-color: #e8bf5a;
+  color: #ffffff;
+  text-shadow: 0 0 6px rgba(232, 191, 90, 0.8);
+}
+
 .ma-stage {
   position: relative;
   min-height: 230px;
@@ -189,6 +213,10 @@
   margin-top: 10px;
 }
 
+.ma-round.is-active {
+  border-color: rgba(232, 191, 90, 0.54);
+}
+
 .ma-round header {
   display: flex;
   justify-content: space-between;
@@ -196,6 +224,32 @@
   align-items: center;
   padding: 10px;
   border-bottom: 1px solid var(--ma-line);
+}
+
+.ma-round-title {
+  display: grid;
+  grid-template-columns: 78px minmax(180px, 1fr);
+  gap: 8px;
+  align-items: end;
+  flex: 1;
+}
+
+.ma-round-title label,
+.ma-description-field {
+  color: #cdbfac;
+  font-size: 11px;
+}
+
+.ma-round-title input {
+  width: 100%;
+  height: 28px;
+}
+
+.ma-round-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .ma-lots {
@@ -206,9 +260,9 @@
 
 .ma-lot {
   display: grid;
-  grid-template-columns: 44px 1fr auto;
+  grid-template-columns: 58px 1fr auto;
   gap: 10px;
-  align-items: center;
+  align-items: start;
   padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 5px;
@@ -221,8 +275,8 @@
 }
 
 .ma-lot img {
-  width: 44px;
-  height: 44px;
+  width: 58px;
+  height: 58px;
   object-fit: cover;
   border-radius: 4px;
 }
@@ -234,18 +288,36 @@
   margin-top: 4px;
 }
 
+.ma-lot-fields-wide {
+  grid-template-columns: minmax(150px, 1.2fr) minmax(160px, 1.4fr) minmax(160px, 1.4fr) 80px 90px;
+}
+
 .ma-lot-fields label {
   color: #cdbfac;
   font-size: 11px;
 }
 
-.ma-lot-fields input {
+.ma-lot-fields input,
+.ma-description-field textarea {
   width: 100%;
+}
+
+.ma-lot-fields input {
   height: 26px;
 }
 
+.ma-description-field {
+  display: block;
+  margin-top: 6px;
+}
+
+.ma-description-field textarea {
+  min-height: 54px;
+  resize: vertical;
+}
+
 .ma-lot-actions {
-  display: flex;
+  display: grid;
   gap: 6px;
 }
 
@@ -302,5 +374,21 @@
 
   .ma-lot-actions {
     grid-column: 1 / -1;
+    display: flex;
+  }
+
+  .ma-lot-fields-wide,
+  .ma-round-title {
+    grid-template-columns: 1fr;
+  }
+
+  .ma-round header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  #midnight-auction-float {
+    left: 12px;
+    bottom: 12px;
   }
 }

@@ -1,8 +1,8 @@
 {
   "id": "midnight-auction",
   "title": "Midnight Auction",
-  "description": "A simple, playful auction interface for Foundry VTT. Put auction items on a dedicated actor, organize them into rounds, and let players bid with instant table-wide updates.",
-  "version": "1.0.0",
+  "description": "A simple, playful auction interface for Foundry VTT. GMs build rounds and lots in-app, then players bid with instant table-wide updates.",
+  "version": "1.0.1",
   "compatibility": {
     "minimum": "11",
     "verified": "11"

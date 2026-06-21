@@ -1,16 +1,20 @@
 const MODULE_ID = "midnight-auction";
-const AUCTION_ACTOR_NAME = "Midnight Auction";
+const AUCTION_NAME = "Midnight Auction";
 const SOCKET = `module.${MODULE_ID}`;
 const STATE_SETTING = "state";
-const ACTOR_SETTING = "auctionActorUuid";
+const CATALOG_SETTING = "catalog";
 const TIMER_SETTING = "timerSeconds";
 const DEFAULT_INCREMENT_SETTING = "defaultIncrement";
 const SCENE_IMAGES_SETTING = "sceneImages";
 
+function randomId() {
+  return foundry.utils.randomID(16);
+}
+
 function defaultState() {
   return {
     status: "idle",
-    round: null,
+    roundId: null,
     itemId: null,
     currentPrice: 0,
     endsAt: null,
@@ -21,15 +25,49 @@ function defaultState() {
   };
 }
 
+function defaultCatalog() {
+  return {
+    rounds: [
+      {
+        id: randomId(),
+        number: 1,
+        title: "Round 1",
+        items: [
+          {
+            id: randomId(),
+            name: "Velvet-Wrapped Curiosity",
+            img: "icons/commodities/treasure/trinket-wing-white.webp",
+            description: "A mysterious first lot. Rename it, set a price, and start the bidding.",
+            startingPrice: 10,
+            increment: 5
+          }
+        ]
+      }
+    ]
+  };
+}
+
 function getState() {
   return foundry.utils.deepClone(game.settings.get(MODULE_ID, STATE_SETTING) ?? defaultState());
+}
+
+function getCatalog() {
+  const catalog = foundry.utils.deepClone(game.settings.get(MODULE_ID, CATALOG_SETTING) ?? {});
+  if (!Array.isArray(catalog.rounds) || !catalog.rounds.length) return defaultCatalog();
+  return catalog;
+}
+
+async function setCatalog(catalog, { ping = true } = {}) {
+  await game.settings.set(MODULE_ID, CATALOG_SETTING, catalog);
+  renderAuctionApps();
+  if (ping) game.socket.emit(SOCKET, { type: "catalog" });
 }
 
 async function setState(nextState, { ping = true } = {}) {
   const state = foundry.utils.mergeObject(defaultState(), nextState ?? {}, { inplace: false });
   await game.settings.set(MODULE_ID, STATE_SETTING, state);
   renderAuctionApps();
-  if (ping) game.socket.emit(SOCKET, { type: "state", state });
+  if (ping) game.socket.emit(SOCKET, { type: "state" });
   return state;
 }
 
@@ -44,16 +82,6 @@ function sceneImages() {
   };
 }
 
-async function getAuctionActor() {
-  const uuid = game.settings.get(MODULE_ID, ACTOR_SETTING);
-  if (!uuid) return null;
-  try {
-    return await fromUuid(uuid);
-  } catch (_err) {
-    return null;
-  }
-}
-
 function getCurrencyGp(actor) {
   return Number(foundry.utils.getProperty(actor, "system.currency.gp") ?? 0);
 }
@@ -62,42 +90,32 @@ async function setCurrencyGp(actor, value) {
   return actor.update({ "system.currency.gp": Math.max(0, Number(value) || 0) });
 }
 
-function itemFlag(item, key, fallback) {
-  return item.getFlag(MODULE_ID, key) ?? fallback;
+function actorForUser(user) {
+  return user.character ?? null;
 }
 
-function itemRound(item) {
-  return Number(itemFlag(item, "round", 1)) || 1;
+function findRound(catalog, roundId) {
+  return catalog.rounds.find((round) => round.id === roundId) ?? null;
 }
 
-function itemStartingPrice(item) {
-  return Number(itemFlag(item, "startingPrice", foundry.utils.getProperty(item, "system.price.value") ?? 10)) || 0;
+function findLot(catalog, itemId) {
+  for (const round of catalog.rounds) {
+    const item = round.items.find((lot) => lot.id === itemId);
+    if (item) return { round, item };
+  }
+  return { round: null, item: null };
 }
 
-function itemIncrement(item) {
-  return Number(itemFlag(item, "increment", game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING))) || 1;
-}
-
-function getActiveItem(actor, state = getState()) {
-  if (!actor || !state.itemId) return null;
-  return actor.items.get(state.itemId) ?? null;
+function activeLot(catalog, state = getState()) {
+  if (!state.itemId) return { round: null, item: null };
+  return findLot(catalog, state.itemId);
 }
 
 function nextBidFor(item, state) {
   if (!item) return 0;
   const current = Number(state.currentPrice) || 0;
-  const increment = itemIncrement(item);
-  return state.bids?.length ? current + increment : Math.max(current, itemStartingPrice(item));
-}
-
-function stripDescription(item) {
-  return foundry.utils.getProperty(item, "system.description.value")
-    || foundry.utils.getProperty(item, "system.description")
-    || "<p>A mysterious lot from the Midnight Auction.</p>";
-}
-
-function actorForUser(user) {
-  return user.character ?? null;
+  const increment = Number(item.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1;
+  return state.bids?.length ? current + increment : Math.max(current, Number(item.startingPrice) || 0);
 }
 
 function bidRows(state) {
@@ -120,40 +138,50 @@ function notifyAll(message) {
   game.socket.emit(SOCKET, { type: "notify", message });
 }
 
-async function createAuctionActor() {
-  let actor = game.actors.find((a) => a.name === AUCTION_ACTOR_NAME);
-  if (!actor) {
-    actor = await Actor.create({
-      name: AUCTION_ACTOR_NAME,
-      type: "npc",
-      img: "icons/environment/settlement/market-stall.webp"
-    });
-  }
-
-  await game.settings.set(MODULE_ID, ACTOR_SETTING, actor.uuid);
-  ui.notifications.info("Midnight Auction actor is ready. Drag auction items onto it.");
-  return actor;
-}
-
-async function ensureMacro() {
-  if (!game.user.isGM) return;
-  const existing = game.macros.find((macro) => macro.name === AUCTION_ACTOR_NAME);
-  if (existing) return;
-
-  await Macro.create({
-    name: AUCTION_ACTOR_NAME,
-    type: "script",
-    img: "icons/commodities/currency/coins-assorted-mix-gold.webp",
-    command: `game.modules.get("${MODULE_ID}").api.open();`
-  });
-}
-
 async function postBidChat(bidderName, amount, itemName) {
   const content = `<p><strong>${bidderName}</strong> bids <strong>${amount} gp</strong> on <em>${itemName}</em>.</p>`;
   return ChatMessage.create({
-    speaker: ChatMessage.getSpeaker({ alias: AUCTION_ACTOR_NAME }),
+    speaker: ChatMessage.getSpeaker({ alias: AUCTION_NAME }),
     content
   });
+}
+
+async function ensureMacros() {
+  if (!game.user.isGM) return;
+  const macroData = [
+    {
+      name: "Midnight Auction",
+      img: "icons/commodities/currency/coins-assorted-mix-gold.webp",
+      command: `game.modules.get("${MODULE_ID}").api.open();`
+    },
+    {
+      name: "Open Midnight Auction",
+      img: "icons/commodities/currency/coins-plain-stack-gold.webp",
+      command: `game.modules.get("${MODULE_ID}").api.open();`
+    }
+  ];
+
+  for (const data of macroData) {
+    const existing = game.macros.find((macro) => macro.name === data.name);
+    if (existing) continue;
+    await Macro.create({
+      ...data,
+      type: "script",
+      ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER }
+    });
+  }
+}
+
+function addFloatingButton() {
+  if (document.getElementById("midnight-auction-float")) return;
+
+  const button = document.createElement("button");
+  button.id = "midnight-auction-float";
+  button.type = "button";
+  button.innerHTML = `<i class="fas fa-gavel"></i><span>Midnight Auction</span>`;
+  button.title = game.user.isGM ? "Open Midnight Auction builder" : "Open Midnight Auction";
+  button.addEventListener("click", () => openAuction());
+  document.body.appendChild(button);
 }
 
 class MidnightAuctionApp extends Application {
@@ -161,9 +189,9 @@ class MidnightAuctionApp extends Application {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "midnight-auction",
       classes: ["midnight-auction-window"],
-      title: AUCTION_ACTOR_NAME,
+      title: AUCTION_NAME,
       template: `modules/${MODULE_ID}/templates/auction-app.hbs`,
-      width: 840,
+      width: 900,
       height: "auto",
       resizable: true
     });
@@ -176,79 +204,64 @@ class MidnightAuctionApp extends Application {
   }
 
   async getData() {
+    const catalog = getCatalog();
     const state = getState();
-    const actor = await getAuctionActor();
-    const item = getActiveItem(actor, state) ?? {
+    const { round, item: activeItem } = activeLot(catalog, state);
+    const item = activeItem ?? {
       id: null,
       name: "No lot is live",
-      img: "icons/svg/item-bag.svg"
+      img: "icons/svg/item-bag.svg",
+      description: "The GM has not started a lot yet."
     };
-    const activeItem = actor ? getActiveItem(actor, state) : null;
     const images = sceneImages();
     const now = Date.now();
     const timeLeft = state.endsAt ? Math.max(0, Math.ceil((state.endsAt - now) / 1000)) : 0;
     const goldActor = actorForUser(game.user);
     const gold = goldActor ? getCurrencyGp(goldActor) : 0;
-    const currentPrice = Number(state.currentPrice) || 0;
     const nextBid = nextBidFor(activeItem, state);
 
     return {
-      actor,
       isGM: game.user.isGM,
-      title: state.status === "item" ? "Bidding Is Live" : "Midnight Auction",
+      title: state.status === "item" ? "Bidding Is Live" : AUCTION_NAME,
       subtitle: state.message,
-      sceneImage: images[state.status] || images.idle,
+      sceneImage: activeItem?.sceneImg || images[state.status] || images.idle,
       timerLabel: state.status === "item" ? "Seconds Left" : "Timer",
       timeLeft: state.status === "item" ? timeLeft : "--",
       urgent: state.status === "item" && timeLeft <= 3,
       item,
-      itemDescription: activeItem ? stripDescription(activeItem) : "<p>The velvet curtain has not lifted yet.</p>",
-      currentPrice,
+      itemDescription: activeItem ? await TextEditor.enrichHTML(activeItem.description || "", { async: true }) : "<p>The velvet curtain has not lifted yet.</p>",
+      currentPrice: Number(state.currentPrice) || 0,
       nextBid,
       gold,
       canBid: Boolean(activeItem && state.status === "item" && goldActor && gold >= nextBid),
       bids: bidRows(state),
-      rounds: actor ? this._roundsFor(actor, state) : []
+      rounds: catalog.rounds.map((catalogRound) => ({
+        ...catalogRound,
+        active: state.roundId === catalogRound.id,
+        items: catalogRound.items.map((lot) => ({
+          ...lot,
+          active: state.itemId === lot.id,
+          increment: Number(lot.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1
+        }))
+      })),
+      activeRoundTitle: round?.title || ""
     };
-  }
-
-  _roundsFor(actor, state) {
-    const byRound = new Map();
-    for (const item of actor.items) {
-      const round = itemRound(item);
-      if (!byRound.has(round)) byRound.set(round, []);
-      byRound.get(round).push({
-        id: item.id,
-        name: item.name,
-        img: item.img,
-        round,
-        startingPrice: itemStartingPrice(item),
-        increment: itemIncrement(item),
-        active: state.itemId === item.id
-      });
-    }
-
-    return [...byRound.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([number, items]) => ({
-        number,
-        items: items.sort((a, b) => a.name.localeCompare(b.name))
-      }));
   }
 
   activateListeners(html) {
     super.activateListeners(html);
-    html.find("[data-action='create-actor']").on("click", () => this._onCreateActor());
-    html.find("[data-action='open-actor']").on("click", () => this._onOpenActor());
     html.find("[data-action='refresh']").on("click", () => this.render(false));
     html.find("[data-action='stop-auction']").on("click", () => this._onStopAuction());
+    html.find("[data-action='add-round']").on("click", () => this._onAddRound());
+    html.find("[data-action='delete-round']").on("click", (event) => this._onDeleteRound(event));
+    html.find("[data-action='add-item']").on("click", (event) => this._onAddItem(event));
+    html.find("[data-action='delete-item']").on("click", (event) => this._onDeleteItem(event));
     html.find("[data-action='start-round']").on("click", (event) => this._onStartRound(event));
     html.find("[data-action='end-round']").on("click", (event) => this._onEndRound(event));
     html.find("[data-action='start-item']").on("click", (event) => this._onStartItem(event));
     html.find("[data-action='end-item']").on("click", (event) => this._onEndItem(event));
     html.find("[data-action='bid']").on("click", () => this._onBid());
-    html.find("[data-action='item-round'], [data-action='item-start'], [data-action='item-increment']")
-      .on("change", (event) => this._onItemField(event));
+    html.find("[data-field]").on("change", (event) => this._onFieldChange(event));
   }
 
   async _render(...args) {
@@ -266,23 +279,12 @@ class MidnightAuctionApp extends Application {
     if (this._clock) window.clearInterval(this._clock);
     this._clock = window.setInterval(() => {
       const state = getState();
-      if (state.status === "item" && state.endsAt && Date.now() >= state.endsAt && game.user.isGM && !this._ending) {
+      if (state.status === "item" && state.endsAt && Date.now() >= state.endsAt && game.user.isGM && isPrimaryActiveGM() && !this._ending) {
         this._onEndItem({ currentTarget: { dataset: { itemId: state.itemId } } });
       } else {
         this.render(false);
       }
     }, 1000);
-  }
-
-  async _onCreateActor() {
-    if (!game.user.isGM) return;
-    await createAuctionActor();
-    this.render(false);
-  }
-
-  async _onOpenActor() {
-    const actor = await getAuctionActor();
-    actor?.sheet?.render(true);
   }
 
   async _onStopAuction() {
@@ -291,55 +293,115 @@ class MidnightAuctionApp extends Application {
     notifyAll("The Midnight Auction has ended.");
   }
 
+  async _onAddRound() {
+    if (!game.user.isGM) return;
+    const catalog = getCatalog();
+    const nextNumber = Math.max(0, ...catalog.rounds.map((round) => Number(round.number) || 0)) + 1;
+    catalog.rounds.push({
+      id: randomId(),
+      number: nextNumber,
+      title: `Round ${nextNumber}`,
+      items: []
+    });
+    await setCatalog(catalog);
+  }
+
+  async _onDeleteRound(event) {
+    if (!game.user.isGM) return;
+    const roundId = event.currentTarget.dataset.roundId;
+    const catalog = getCatalog();
+    catalog.rounds = catalog.rounds.filter((round) => round.id !== roundId);
+    if (!catalog.rounds.length) catalog.rounds = defaultCatalog().rounds;
+
+    const state = getState();
+    if (state.roundId === roundId) await setState(defaultState(), { ping: false });
+    await setCatalog(catalog);
+  }
+
+  async _onAddItem(event) {
+    if (!game.user.isGM) return;
+    const roundId = event.currentTarget.dataset.roundId;
+    const catalog = getCatalog();
+    const round = findRound(catalog, roundId);
+    if (!round) return;
+
+    round.items.push({
+      id: randomId(),
+      name: "New Auction Lot",
+      img: "icons/svg/item-bag.svg",
+      sceneImg: "",
+      description: "Describe this lot for your bidders.",
+      startingPrice: 10,
+      increment: Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 10
+    });
+    await setCatalog(catalog);
+  }
+
+  async _onDeleteItem(event) {
+    if (!game.user.isGM) return;
+    const itemId = event.currentTarget.dataset.itemId;
+    const catalog = getCatalog();
+    for (const round of catalog.rounds) {
+      round.items = round.items.filter((item) => item.id !== itemId);
+    }
+
+    const state = getState();
+    if (state.itemId === itemId) await setState(defaultState(), { ping: false });
+    await setCatalog(catalog);
+  }
+
   async _onStartRound(event) {
     if (!game.user.isGM) return;
-    const round = Number(event.currentTarget.dataset.round);
+    const catalog = getCatalog();
+    const round = findRound(catalog, event.currentTarget.dataset.roundId);
+    if (!round) return;
+
     await setState({
       ...getState(),
       status: "round",
-      round,
+      roundId: round.id,
       itemId: null,
       currentPrice: 0,
       endsAt: null,
       winnerUserId: null,
       winnerActorUuid: null,
       bids: [],
-      message: `Round ${round} is now live. The next lot is coming up.`
+      message: `${round.title || `Round ${round.number}`} is now live. The next lot is coming up.`
     });
-    notifyAll(`Round ${round} of the Midnight Auction is live.`);
+    notifyAll(`${round.title || `Round ${round.number}`} of the Midnight Auction is live.`);
   }
 
   async _onEndRound(event) {
     if (!game.user.isGM) return;
-    const round = Number(event.currentTarget.dataset.round);
+    const catalog = getCatalog();
+    const round = findRound(catalog, event.currentTarget.dataset.roundId);
+    if (!round) return;
+
     await setState({
       ...getState(),
       status: "idle",
-      round,
+      roundId: round.id,
       itemId: null,
       currentPrice: 0,
       endsAt: null,
       bids: [],
-      message: `Round ${round} has ended.`
+      message: `${round.title || `Round ${round.number}`} has ended.`
     });
-    notifyAll(`Round ${round} has ended.`);
+    notifyAll(`${round.title || `Round ${round.number}`} has ended.`);
   }
 
   async _onStartItem(event) {
     if (!game.user.isGM) return;
-    const actor = await getAuctionActor();
-    if (!actor) return ui.notifications.warn("Create the Midnight Auction actor first.");
+    const catalog = getCatalog();
+    const { round, item } = findLot(catalog, event.currentTarget.dataset.itemId);
+    if (!round || !item) return;
 
-    const itemId = event.currentTarget.dataset.itemId;
-    const item = actor.items.get(itemId);
-    if (!item) return;
-
-    const startingPrice = itemStartingPrice(item);
+    const startingPrice = Number(item.startingPrice) || 0;
     const timerSeconds = Number(game.settings.get(MODULE_ID, TIMER_SETTING)) || 10;
     await setState({
       status: "item",
-      round: itemRound(item),
-      itemId,
+      roundId: round.id,
+      itemId: item.id,
       currentPrice: startingPrice,
       endsAt: Date.now() + timerSeconds * 1000,
       winnerUserId: null,
@@ -351,17 +413,17 @@ class MidnightAuctionApp extends Application {
   }
 
   async _onEndItem(event) {
-    if (!game.user.isGM) return;
+    if (!game.user.isGM || !isPrimaryActiveGM()) return;
     this._ending = true;
     try {
-      const actor = await getAuctionActor();
+      const catalog = getCatalog();
       const state = getState();
       const itemId = event.currentTarget.dataset.itemId || state.itemId;
-      const item = actor?.items.get(itemId);
+      const { item } = findLot(catalog, itemId);
       if (!item || state.itemId !== itemId) return;
 
       const winningBid = state.bids?.[0];
-      if (winningBid) await this._settleWinningBid(actor, item, winningBid);
+      if (winningBid) await this._settleWinningBid(winningBid);
 
       const message = winningBid
         ? `${winningBid.bidderName} wins ${item.name} for ${winningBid.amount} gp.`
@@ -378,16 +440,11 @@ class MidnightAuctionApp extends Application {
     }
   }
 
-  async _settleWinningBid(auctionActor, item, winningBid) {
+  async _settleWinningBid(winningBid) {
     const winnerActor = await fromUuid(winningBid.actorUuid);
     if (!winnerActor) return;
-
     const gold = getCurrencyGp(winnerActor);
     await setCurrencyGp(winnerActor, gold - winningBid.amount);
-    const itemData = item.toObject();
-    delete itemData._id;
-    await winnerActor.createEmbeddedDocuments("Item", [itemData]);
-    await auctionActor.deleteEmbeddedDocuments("Item", [item.id]);
   }
 
   async _onBid() {
@@ -400,20 +457,29 @@ class MidnightAuctionApp extends Application {
     });
   }
 
-  async _onItemField(event) {
+  async _onFieldChange(event) {
     if (!game.user.isGM) return;
-    const actor = await getAuctionActor();
-    const item = actor?.items.get(event.currentTarget.dataset.itemId);
-    if (!item) return;
+    const field = event.currentTarget.dataset.field;
+    const roundId = event.currentTarget.dataset.roundId;
+    const itemId = event.currentTarget.dataset.itemId;
+    const catalog = getCatalog();
 
-    const value = Math.max(0, Number(event.currentTarget.value) || 0);
-    const action = event.currentTarget.dataset.action;
-    const updates = {};
-    if (action === "item-round") updates[`flags.${MODULE_ID}.round`] = Math.max(1, value);
-    if (action === "item-start") updates[`flags.${MODULE_ID}.startingPrice`] = value;
-    if (action === "item-increment") updates[`flags.${MODULE_ID}.increment`] = Math.max(1, value);
-    await item.update(updates);
-    this.render(false);
+    if (roundId && !itemId) {
+      const round = findRound(catalog, roundId);
+      if (!round) return;
+      if (field === "number") round.number = Math.max(1, Number(event.currentTarget.value) || 1);
+      if (field === "title") round.title = event.currentTarget.value.trim() || `Round ${round.number || 1}`;
+    }
+
+    if (itemId) {
+      const { item } = findLot(catalog, itemId);
+      if (!item) return;
+      if (["startingPrice", "increment"].includes(field)) item[field] = Math.max(field === "increment" ? 1 : 0, Number(event.currentTarget.value) || 0);
+      if (["name", "img", "sceneImg", "description"].includes(field)) item[field] = event.currentTarget.value;
+    }
+
+    catalog.rounds.sort((a, b) => (Number(a.number) || 0) - (Number(b.number) || 0));
+    await setCatalog(catalog);
   }
 }
 
@@ -421,10 +487,10 @@ async function processBid(data) {
   if (!game.user.isGM || !isPrimaryActiveGM()) return;
   const bidder = game.users.get(data.userId);
   const bidderActor = await fromUuid(data.actorUuid);
-  const auctionActor = await getAuctionActor();
+  const catalog = getCatalog();
   const state = getState();
-  const item = getActiveItem(auctionActor, state);
-  if (!bidder || !bidderActor || !auctionActor || !item || state.status !== "item") return;
+  const { item } = activeLot(catalog, state);
+  if (!bidder || !bidderActor || !item || state.status !== "item") return;
 
   const amount = nextBidFor(item, state);
   if (getCurrencyGp(bidderActor) < amount) {
@@ -456,7 +522,9 @@ async function processBid(data) {
 }
 
 function openAuction() {
-  new MidnightAuctionApp().render(true);
+  const existing = Object.values(ui.windows).find((app) => app instanceof MidnightAuctionApp);
+  if (existing) return existing.render(true);
+  return new MidnightAuctionApp().render(true);
 }
 
 Hooks.once("init", () => {
@@ -467,13 +535,11 @@ Hooks.once("init", () => {
     default: defaultState()
   });
 
-  game.settings.register(MODULE_ID, ACTOR_SETTING, {
-    name: "Auction Actor",
-    hint: "UUID of the actor that holds Midnight Auction items.",
+  game.settings.register(MODULE_ID, CATALOG_SETTING, {
     scope: "world",
     config: false,
-    type: String,
-    default: ""
+    type: Object,
+    default: defaultCatalog()
   });
 
   game.settings.register(MODULE_ID, TIMER_SETTING, {
@@ -487,7 +553,7 @@ Hooks.once("init", () => {
 
   game.settings.register(MODULE_ID, DEFAULT_INCREMENT_SETTING, {
     name: "Default Bid Increment",
-    hint: "Default gold increase for items that do not have a custom increment set in the auction screen.",
+    hint: "Default gold increase for new lots.",
     scope: "world",
     config: true,
     type: Number,
@@ -496,7 +562,7 @@ Hooks.once("init", () => {
 
   game.settings.register(MODULE_ID, SCENE_IMAGES_SETTING, {
     name: "Scene Images",
-    hint: "Optional image paths, one per line: idle, round live, item live, sold. Leave blank to use Foundry icons.",
+    hint: "Optional image paths, one per line: idle, round live, item live, sold.",
     scope: "world",
     config: true,
     type: String,
@@ -507,7 +573,7 @@ Hooks.once("init", () => {
 Hooks.once("ready", async () => {
   game.socket.on(SOCKET, async (data) => {
     if (data.type === "bid") return processBid(data);
-    if (data.type === "state") return renderAuctionApps();
+    if (data.type === "state" || data.type === "catalog") return renderAuctionApps();
     if (data.type === "notify") {
       if (!data.userId || data.userId === game.user.id) ui.notifications.info(data.message);
       return renderAuctionApps();
@@ -515,21 +581,16 @@ Hooks.once("ready", async () => {
     return null;
   });
 
-  await ensureMacro();
+  addFloatingButton();
+  await ensureMacros();
 });
 
-Hooks.on("getActorSheetHeaderButtons", (sheet, buttons) => {
-  if (!game.user.isGM) return;
-  buttons.unshift({
-    label: "Auction",
-    class: "midnight-auction",
-    icon: "fas fa-gavel",
-    onclick: () => openAuction()
-  });
-});
+Hooks.on("renderSceneControls", () => addFloatingButton());
+Hooks.on("canvasReady", () => addFloatingButton());
 
 game.modules.get(MODULE_ID).api = {
   open: openAuction,
-  createAuctionActor,
-  reset: () => setState(defaultState())
+  reset: () => setState(defaultState()),
+  getCatalog,
+  setCatalog
 };

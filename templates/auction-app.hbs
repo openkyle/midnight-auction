@@ -32,42 +32,50 @@
   {{#if isGM}}
   <section class="ma-gm-controls">
     <div class="ma-toolbar">
-      <button type="button" data-action="create-actor"><i class="fas fa-user-plus"></i> Auction Actor</button>
-      <button type="button" data-action="open-actor" {{#unless actor}}disabled{{/unless}}><i class="fas fa-id-card"></i> Open Actor</button>
+      <button type="button" data-action="add-round"><i class="fas fa-plus"></i> Add Round</button>
       <button type="button" data-action="refresh"><i class="fas fa-sync"></i> Refresh</button>
       <button type="button" data-action="stop-auction"><i class="fas fa-stop"></i> End Auction</button>
     </div>
 
-    {{#unless actor}}
-    <p class="ma-empty">Create the auction actor, then drag items onto it. Set each lot's round, starting price, and bid increment below.</p>
-    {{/unless}}
-
     {{#each rounds}}
-    <article class="ma-round">
+    <article class="ma-round {{#if active}}is-active{{/if}}">
       <header>
-        <h3>Round {{number}}</h3>
-        <div>
-          <button type="button" data-action="start-round" data-round="{{number}}">Start Round</button>
-          <button type="button" data-action="end-round" data-round="{{number}}">End Round</button>
+        <div class="ma-round-title">
+          <label>No. <input type="number" min="1" value="{{number}}" data-field="number" data-round-id="{{id}}"></label>
+          <label>Round <input type="text" value="{{title}}" data-field="title" data-round-id="{{id}}"></label>
+        </div>
+        <div class="ma-round-actions">
+          <button type="button" data-action="start-round" data-round-id="{{id}}">Start Round</button>
+          <button type="button" data-action="end-round" data-round-id="{{id}}">End Round</button>
+          <button type="button" data-action="add-item" data-round-id="{{id}}">Add Lot</button>
+          <button type="button" data-action="delete-round" data-round-id="{{id}}">Delete</button>
         </div>
       </header>
+
       <div class="ma-lots">
         {{#each items}}
         <div class="ma-lot {{#if active}}is-active{{/if}}">
           <img src="{{img}}" alt="{{name}}">
           <div class="ma-lot-main">
-            <strong>{{name}}</strong>
-            <div class="ma-lot-fields">
-              <label>Round <input type="number" min="1" value="{{round}}" data-action="item-round" data-item-id="{{id}}"></label>
-              <label>Start <input type="number" min="0" value="{{startingPrice}}" data-action="item-start" data-item-id="{{id}}"></label>
-              <label>Increment <input type="number" min="1" value="{{increment}}" data-action="item-increment" data-item-id="{{id}}"></label>
+            <div class="ma-lot-fields ma-lot-fields-wide">
+              <label>Name <input type="text" value="{{name}}" data-field="name" data-item-id="{{id}}"></label>
+              <label>Item Image <input type="text" value="{{img}}" data-field="img" data-item-id="{{id}}"></label>
+              <label>Scene Image <input type="text" value="{{sceneImg}}" data-field="sceneImg" data-item-id="{{id}}"></label>
+              <label>Start <input type="number" min="0" value="{{startingPrice}}" data-field="startingPrice" data-item-id="{{id}}"></label>
+              <label>Increment <input type="number" min="1" value="{{increment}}" data-field="increment" data-item-id="{{id}}"></label>
             </div>
+            <label class="ma-description-field">Description
+              <textarea data-field="description" data-item-id="{{id}}">{{description}}</textarea>
+            </label>
           </div>
           <div class="ma-lot-actions">
             <button type="button" data-action="start-item" data-item-id="{{id}}">Start</button>
             <button type="button" data-action="end-item" data-item-id="{{id}}">End</button>
+            <button type="button" data-action="delete-item" data-item-id="{{id}}">Delete</button>
           </div>
         </div>
+        {{else}}
+        <p class="ma-empty">No lots in this round yet.</p>
         {{/each}}
       </div>
     </article>
