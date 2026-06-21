@@ -22,6 +22,7 @@ function defaultState() {
     status: "idle",
     roundId: null,
     itemId: null,
+    activeItem: null,
     currentPrice: 0,
     endsAt: null,
     winnerUserId: null,
@@ -171,6 +172,19 @@ function findLot(catalog, itemId) {
 function activeLot(catalog, state = getState()) {
   if (!state.itemId) return { round: null, item: null };
   return findLot(catalog, state.itemId);
+}
+
+function lotSnapshot(item) {
+  if (!item) return null;
+  return {
+    id: item.id,
+    name: item.name,
+    img: item.img || "icons/svg/item-bag.svg",
+    sceneImg: item.sceneImg || "",
+    description: item.description || "",
+    startingPrice: Number(item.startingPrice) || 0,
+    increment: Number(item.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1
+  };
 }
 
 function firstOpenItem(round, completedItemIds = []) {
@@ -363,7 +377,8 @@ class MidnightAuctionApp extends Application {
   async getData() {
     const catalog = getCatalog();
     const state = getState();
-    const { round, item: activeItem } = activeLot(catalog, state);
+    const { round, item: catalogActiveItem } = activeLot(catalog, state);
+    const activeItem = catalogActiveItem ?? state.activeItem;
     const item = activeItem ?? {
       id: null,
       name: "No lot is live",
@@ -605,6 +620,7 @@ class MidnightAuctionApp extends Application {
       status: "round",
       roundId: round.id,
       itemId: null,
+      activeItem: null,
       currentPrice: 0,
       endsAt: null,
       winnerUserId: null,
@@ -627,6 +643,7 @@ class MidnightAuctionApp extends Application {
       status: "idle",
       roundId: round.id,
       itemId: null,
+      activeItem: null,
       currentPrice: 0,
       endsAt: null,
       bids: [],
@@ -653,6 +670,7 @@ class MidnightAuctionApp extends Application {
       status: "item",
       roundId: round.id,
       itemId: item.id,
+      activeItem: lotSnapshot(item),
       currentPrice: startingPrice,
       endsAt: Date.now() + timerSeconds() * 1000,
       winnerUserId: null,
@@ -701,6 +719,7 @@ class MidnightAuctionApp extends Application {
         ...state,
         status: "sold",
         itemId: null,
+        activeItem: null,
         currentPrice: 0,
         endsAt: null,
         completedItemIds,
@@ -724,7 +743,8 @@ class MidnightAuctionApp extends Application {
     if (!game.user.isGM) return;
     const catalog = getCatalog();
     const state = getState();
-    const { item } = activeLot(catalog, state);
+    const { item: catalogItem } = activeLot(catalog, state);
+    const item = catalogItem ?? state.activeItem;
     if (!item || state.status !== "item") return ui.notifications.warn("Start a lot before placing an NPC bid.");
 
     const bidders = getNpcBidders().filter((bidder) => bidder.name?.trim());
@@ -844,7 +864,8 @@ async function processBid(data) {
   const bidderActor = await fromUuid(data.actorUuid);
   const catalog = getCatalog();
   const state = getState();
-  const { item } = activeLot(catalog, state);
+  const { item: catalogItem } = activeLot(catalog, state);
+  const item = catalogItem ?? state.activeItem;
   if (!bidder || !bidderActor || !item || state.status !== "item") return;
 
   const amount = nextBidFor(item, state);
