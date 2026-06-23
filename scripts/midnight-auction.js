@@ -218,7 +218,7 @@ function lotSnapshot(item) {
     description: item.description || "",
     marketPrice,
     startingPrice: effectiveStartingPrice(item),
-    increment: Number(item.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1
+    increment: bidIncrement()
   };
 }
 
@@ -239,15 +239,23 @@ function itemAfter(round, itemId, completedItemIds = []) {
 function nextBidFor(item, state) {
   if (!item) return 0;
   const current = Number(state.currentPrice) || 0;
-  const increment = Number(item.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1;
+  const increment = bidIncrement();
   return state.bids?.length ? current + increment : Math.max(current, effectiveStartingPrice(item));
 }
 
 function nextNpcBidFor(item, state) {
   if (!item) return 0;
   const current = Number(state.currentPrice) || 0;
-  const increment = Number(game.settings.get(MODULE_ID, NPC_BID_INCREMENT_SETTING)) || 1;
+  const increment = npcBidIncrement();
   return state.bids?.length ? current + increment : Math.max(current, effectiveStartingPrice(item));
+}
+
+function bidIncrement() {
+  return Math.max(1, Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1);
+}
+
+function npcBidIncrement() {
+  return Math.max(1, Number(game.settings.get(MODULE_ID, NPC_BID_INCREMENT_SETTING)) || 1);
 }
 
 function timerMode() {
@@ -275,6 +283,21 @@ function previewEnabled() {
 
 function previewSeconds() {
   return Math.max(1, Number(game.settings.get(MODULE_ID, PREVIEW_SECONDS_SETTING)) || 10);
+}
+
+function activePhaseDurationSeconds(status) {
+  if (status === "preview") return previewSeconds();
+  if (status === "item") return timerSeconds();
+  return null;
+}
+
+function retimeStateForCurrentSettings(state) {
+  const duration = activePhaseDurationSeconds(state.status);
+  if (!duration || !state.timerStartedAt) return state;
+  return {
+    ...state,
+    endsAt: Number(state.timerStartedAt) + duration * 1000
+  };
 }
 
 function bidRows(state) {
@@ -718,7 +741,8 @@ class MidnightAuctionApp extends Application {
           ...lot,
           active: state.itemId === lot.id,
           complete: completed.has(lot.id),
-          increment: Number(lot.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1
+          startingPrice: effectiveStartingPrice(lot),
+          increment: bidIncrement()
         }))
       })),
       selectedRound: selectedRound
@@ -729,7 +753,8 @@ class MidnightAuctionApp extends Application {
             ...lot,
             active: state.itemId === lot.id,
             complete: completed.has(lot.id),
-            increment: Number(lot.increment) || Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 1
+            startingPrice: effectiveStartingPrice(lot),
+            increment: bidIncrement()
           }))
         }
         : null,
@@ -1362,11 +1387,59 @@ class MidnightAuctionApp extends Application {
     await setNpcBidders(bidders);
   }
 
+  async _applySettingsToLiveAuction(setting) {
+    const state = getState();
+    if (!["preview", "item"].includes(state.status) || !state.itemId) return;
+
+    if (setting === PREVIEW_ENABLED_SETTING && !previewEnabled() && state.status === "preview") {
+      await this._beginLotBidding(state);
+      return;
+    }
+
+    const catalog = getCatalog();
+    const { item: catalogItem } = activeLot(catalog, state);
+    const item = catalogItem ?? state.activeItem;
+    let nextState = foundry.utils.deepClone(state);
+    let changed = false;
+
+    const timerSettings = new Set([
+      TIMER_SETTING,
+      SUDDEN_DEATH_SECONDS_SETTING,
+      PREVIEW_SECONDS_SETTING,
+      PREVIEW_ENABLED_SETTING
+    ]);
+    if (timerSettings.has(setting)) {
+      nextState = retimeStateForCurrentSettings(nextState);
+      changed = true;
+    }
+
+    const priceSettings = new Set([
+      STARTING_BID_PERCENT_SETTING,
+      DEFAULT_INCREMENT_SETTING
+    ]);
+    if (item && priceSettings.has(setting)) {
+      const startingPrice = effectiveStartingPrice(item);
+      const hasBids = Boolean(nextState.bids?.length);
+      nextState = {
+        ...nextState,
+        activeItem: lotSnapshot(item),
+        currentPrice: hasBids ? nextState.currentPrice : startingPrice,
+        message: !hasBids && nextState.status === "item"
+          ? `${item.name} is on the block. Opening bid: ${startingPrice} gp.`
+          : nextState.message
+      };
+      changed = true;
+    }
+
+    if (changed) await setState(nextState, { ping: false });
+  }
+
   async _onSettingChange(event) {
     if (!game.user.isGM) return;
     const setting = event.currentTarget.dataset.setting;
     if (setting === "suddenDeath") {
       await game.settings.set(MODULE_ID, TIMER_SETTING, event.currentTarget.checked ? "sudden" : selectedTimerMode());
+      await this._applySettingsToLiveAuction(TIMER_SETTING);
       renderAuctionApps();
       game.socket.emit(SOCKET, { type: "settings" });
       return;
@@ -1402,6 +1475,7 @@ class MidnightAuctionApp extends Application {
 
     await game.settings.set(MODULE_ID, setting, value);
     if (setting === STARTING_BID_PERCENT_SETTING) await setCatalog(repriceCatalog(getCatalog()), { ping: false });
+    await this._applySettingsToLiveAuction(setting);
     if (setting === ROUND_COUNT_SETTING) this._selectedRoundId = null;
     renderAuctionApps();
     game.socket.emit(SOCKET, { type: "settings" });
