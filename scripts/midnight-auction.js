@@ -489,14 +489,14 @@ function settingsHelpHtml() {
       <dl>
         <dt>Bid Timer</dt><dd>Sets the normal bidding countdown used when a lot is live.</dd>
         <dt>Sudden Death Timer</dt><dd>Sets the countdown length used when Sudden Death is enabled.</dd>
-        <dt>Read Time</dt><dd>Sets how long players see the lot preview before bidding opens, when Preview is enabled.</dd>
+        <dt>Read Time</dt><dd>Sets how long players see the lot preview before bidding opens, when Lot Preview is enabled.</dd>
         <dt>Start %</dt><dd>Sets the opening bid as a percentage of the item market price, rounded down. Existing lots and active unopened prices update live.</dd>
         <dt>Rounds</dt><dd>Sets how many Lot tabs appear, from 1 to 10.</dd>
         <dt>Bid Step</dt><dd>Sets how much each player or NPC bid raises the current price.</dd>
         <dt>Sudden Death</dt><dd>When enabled, bids do not reset the timer.</dd>
-        <dt>Preview</dt><dd>When enabled, each lot opens with a read-only preview phase before bidding begins.</dd>
-        <dt>Transfer</dt><dd>When enabled, a copy of the won item is added to the winning character.</dd>
-        <dt>Invite</dt><dd>When enabled, starting a round opens the auction window for players.</dd>
+        <dt>Lot Preview</dt><dd>When enabled, each lot opens with a read-only preview phase before bidding begins.</dd>
+        <dt>Transfer to Player</dt><dd>When enabled, a copy of the won item is added to the winning character.</dd>
+        <dt>Invite Players</dt><dd>When enabled, starting a round opens the auction window for players.</dd>
         <dt>Hide Image Text</dt><dd>Hides the title and status text over the large auction image.</dd>
         <dt>Auction Photo</dt><dd>Sets the default large auction image used when a lot does not provide a scene image.</dd>
         <dt>Winner Sound</dt><dd>Enables and selects the sound played when a lot has a winner.</dd>

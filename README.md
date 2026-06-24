@@ -34,14 +34,14 @@ Open the gear panel in the GM auction window. The small help button in the botto
 
 - **Bid Timer** sets the normal bidding countdown used when a lot is live.
 - **Sudden Death Timer** sets the countdown length used when **Sudden Death** is enabled.
-- **Read Time** sets how long players see the item preview before bidding opens, when **Preview** is enabled.
+- **Read Time** sets how long players see the item preview before bidding opens, when **Lot Preview** is enabled.
 - **Start %** sets the opening bid as a percentage of the item's market price, rounded down. Existing lots and active unopened prices update live.
 - **Rounds** sets how many Lot tabs appear, from 1 to 10.
 - **Bid Step** sets how much each player or NPC bid raises the current price.
 - **Sudden Death** makes bids stop resetting the timer.
-- **Preview** opens each lot with a read-only preview phase before bidding begins.
-- **Transfer** copies the won item to the winning character when the lot closes.
-- **Invite** opens the auction window for players when a round starts.
+- **Lot Preview** opens each lot with a read-only preview phase before bidding begins.
+- **Transfer to Player** copies the won item to the winning character when the lot closes.
+- **Invite Players** opens the auction window for players when a round starts.
 - **Hide Image Text** hides the title and status text over the large auction image.
 - **Auction Photo** sets the default large auction image used when a lot does not provide a scene image.
 - **Winner Sound** enables and selects the sound played when a lot has a winner.

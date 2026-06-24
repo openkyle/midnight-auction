@@ -104,11 +104,10 @@
     {{#if showSettings}}
     <section class="ma-auction-profiles">
       <div class="ma-profile-head">
-        <strong>{{activeAuctionName}}</strong>
         <div>
-          <button type="button" data-action="new-auction"><i class="fas fa-file"></i> New</button>
-          <button type="button" data-action="save-auction" {{#unless canSaveAuction}}disabled{{/unless}}><i class="fas fa-save"></i> Save</button>
-          <button type="button" data-action="store-auction"><i class="fas fa-archive"></i> Store</button>
+          <button type="button" data-action="new-auction">New</button>
+          <button type="button" data-action="save-auction" {{#unless canSaveAuction}}disabled{{/unless}}>Save</button>
+          <button type="button" data-action="store-auction">Store</button>
         </div>
       </div>
       <div class="ma-profile-list">
@@ -150,17 +149,18 @@
       <label class="ma-setting-check">Sudden Death
         <input type="checkbox" {{checked settings.suddenDeath}} data-setting="suddenDeath">
       </label>
-      <label class="ma-setting-check">Preview
+      <label class="ma-setting-check">Lot Preview
         <input type="checkbox" {{checked settings.previewEnabled}} data-setting="previewEnabled">
       </label>
-      <label class="ma-setting-check">Transfer
+      <label class="ma-setting-check">Transfer to Player
         <input type="checkbox" {{checked settings.transferItemToWinner}} data-setting="transferItemToWinner">
       </label>
-      <label class="ma-setting-check">Invite
+      <label class="ma-setting-check">Invite Players
         <input type="checkbox" {{checked settings.autoOpenPlayers}} data-setting="autoOpenPlayers">
       </label>
       <label class="ma-setting-check">Hide Image Text
         <input type="checkbox" {{checked settings.hideImageText}} data-setting="hideImageText">
+        <button class="ma-inline-help" type="button" data-action="settings-help" title="Settings help"><i class="fas fa-question-circle"></i></button>
       </label>
       <div class="ma-media-settings">
         <div class="ma-media-files">
@@ -197,7 +197,6 @@
           </label>
         </div>
       </div>
-      <button class="ma-settings-help" type="button" data-action="settings-help" title="Settings help"><i class="fas fa-question-circle"></i></button>
     </section>
     {{/if}}
 
