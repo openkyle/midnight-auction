@@ -415,6 +415,7 @@
   display: grid;
   grid-template-columns: repeat(6, minmax(86px, 1fr));
   gap: 8px;
+  position: relative;
   padding: 8px 10px;
 }
 
@@ -494,27 +495,37 @@
   grid-column: span 3;
 }
 
-.ma-file-picker,
-.ma-sound-picker {
-  grid-column: span 3;
+.ma-media-settings {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(420px, 1.1fr) minmax(280px, 0.8fr);
+  gap: 12px;
+  align-items: start;
+  margin-top: 2px;
+}
+
+.ma-media-files,
+.ma-media-volumes {
+  display: grid;
+  gap: 6px;
 }
 
 .ma-file-picker {
   display: grid;
-  grid-template-columns: minmax(86px, auto) minmax(0, 1fr);
+  grid-template-columns: 126px minmax(0, 1fr);
   gap: 4px 6px;
-  align-items: end;
+  align-items: center;
 }
 
 .ma-sound-picker {
   display: grid;
-  grid-template-columns: minmax(86px, auto) 18px minmax(0, 1fr);
+  grid-template-columns: 126px 18px minmax(0, 1fr);
   gap: 4px 6px;
-  align-items: end;
+  align-items: center;
 }
 
 .ma-setting-label {
-  line-height: 28px;
+  line-height: 1.2;
 }
 
 .ma-sound-picker > input[type="checkbox"] {
@@ -537,7 +548,45 @@
 }
 
 .ma-volume-setting {
-  grid-column: span 2;
+  display: grid;
+  gap: 4px;
+}
+
+.ma-settings-help {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.midnight-auction-help {
+  display: grid;
+  gap: 8px;
+}
+
+.midnight-auction-help h2,
+.midnight-auction-help h3,
+.midnight-auction-help p {
+  margin: 0;
+}
+
+.midnight-auction-help dl {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  gap: 5px 10px;
+  margin: 0;
+}
+
+.midnight-auction-help dt {
+  font-weight: 700;
+}
+
+.midnight-auction-help dd {
+  margin: 0;
 }
 
 .ma-npc-panel {
@@ -766,8 +815,18 @@
   .ma-profile-list,
   .ma-toolbar,
   .ma-settings-panel,
+  .ma-media-settings,
   .ma-drop-row {
     grid-template-columns: 1fr;
+  }
+
+  .ma-file-picker,
+  .ma-sound-picker {
+    grid-template-columns: 118px 18px minmax(0, 1fr);
+  }
+
+  .ma-file-picker {
+    grid-template-columns: 118px minmax(0, 1fr);
   }
 
   #midnight-auction-float {

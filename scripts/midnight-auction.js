@@ -472,6 +472,42 @@ function playAuctionStartSound() {
   AudioHelper.play({ src, volume, autoplay: true, loop: false }, true);
 }
 
+function settingsHelpHtml() {
+  return `
+    <div class="midnight-auction-help">
+      <h2>Midnight Auction Help</h2>
+      <h3>Auction Flow</h3>
+      <p><strong>New</strong> clears the builder for a new auction. <strong>Save</strong> keeps the current auction in one of three quick-save slots. <strong>Store</strong> writes the auction data to the world compendium named Midnight Auction Stores.</p>
+      <p>Use the Lot tabs to organize groups of auction items. Drag Items from the sidebar into the selected lot tab, then use Start Round to begin the first item in that tab. When a tab is running it shows (Live); when it is manually ended or fully completed it shows (Ended).</p>
+      <p><strong>Reset Auction Rounds</strong> returns the live auction state to idle. It is disabled until at least one round, lot, bid, or result exists.</p>
+
+      <h3>Bidding</h3>
+      <p>Players bid with their assigned character. Their gold is read from the DnD5e character currency, and winning gold is deducted when the lot closes.</p>
+      <p><strong>NPC Bid</strong> picks a random NPC bidder from the NPC Bidders panel and places the next legal bid using the same bid step as players.</p>
+
+      <h3>Settings</h3>
+      <dl>
+        <dt>Bid Timer</dt><dd>Sets the normal bidding countdown used when a lot is live.</dd>
+        <dt>Sudden Death Timer</dt><dd>Sets the countdown length used when Sudden Death is enabled.</dd>
+        <dt>Read Time</dt><dd>Sets how long players see the lot preview before bidding opens, when Preview is enabled.</dd>
+        <dt>Start %</dt><dd>Sets the opening bid as a percentage of the item market price, rounded down. Existing lots and active unopened prices update live.</dd>
+        <dt>Rounds</dt><dd>Sets how many Lot tabs appear, from 1 to 10.</dd>
+        <dt>Bid Step</dt><dd>Sets how much each player or NPC bid raises the current price.</dd>
+        <dt>Sudden Death</dt><dd>When enabled, bids do not reset the timer.</dd>
+        <dt>Preview</dt><dd>When enabled, each lot opens with a read-only preview phase before bidding begins.</dd>
+        <dt>Transfer</dt><dd>When enabled, a copy of the won item is added to the winning character.</dd>
+        <dt>Invite</dt><dd>When enabled, starting a round opens the auction window for players.</dd>
+        <dt>Hide Image Text</dt><dd>Hides the title and status text over the large auction image.</dd>
+        <dt>Auction Photo</dt><dd>Sets the default large auction image used when a lot does not provide a scene image.</dd>
+        <dt>Winner Sound</dt><dd>Enables and selects the sound played when a lot has a winner.</dd>
+        <dt>Winner Vol.</dt><dd>Controls the winner sound volume.</dd>
+        <dt>Start Sound</dt><dd>Enables and selects the sound played when a round starts.</dd>
+        <dt>Start Vol.</dt><dd>Controls the round-start sound volume.</dd>
+      </dl>
+    </div>
+  `;
+}
+
 async function ensureMacros() {
   if (!game.user.isGM) return;
   const playerMacro = {
@@ -508,15 +544,11 @@ async function ensureMacros() {
 
 async function ensurePlayerMacroCompendium(playerMacro) {
   try {
-    let pack = game.packs.get("world.midnight-auction-player-macros");
-    if (!pack && globalThis.CompendiumCollection?.createCompendium) {
-      pack = await globalThis.CompendiumCollection.createCompendium({
-        type: "Macro",
-        label: "Midnight Auction Player Macros",
-        name: "midnight-auction-player-macros",
-        package: "world"
-      });
-    }
+    const pack = await getOrCreateWorldCompendium({
+      type: "Macro",
+      label: "Midnight Auction Player Macros",
+      name: "midnight-auction-player-macros"
+    });
     if (!pack) return;
     const index = await pack.getIndex();
     if (index.some((entry) => entry.name === playerMacro.name)) return;
@@ -528,6 +560,32 @@ async function ensurePlayerMacroCompendium(playerMacro) {
   } catch (err) {
     console.warn(`${AUCTION_NAME} could not create the player macro compendium.`, err);
   }
+}
+
+async function getOrCreateWorldCompendium({ type, label, name }) {
+  const collection = `world.${name}`;
+  let pack = game.packs.get(collection);
+  if (pack) return pack;
+
+  const data = { type, label, name, package: "world" };
+  const creators = [
+    [globalThis.CompendiumCollection?.createCompendium, globalThis.CompendiumCollection],
+    [globalThis.foundry?.documents?.collections?.CompendiumCollection?.createCompendium, globalThis.foundry?.documents?.collections?.CompendiumCollection],
+    [game.packs?.constructor?.createCompendium, game.packs?.constructor]
+  ].filter(([creator]) => typeof creator === "function");
+
+  for (const [creator, context] of creators) {
+    try {
+      pack = await creator.call(context, data);
+      if (pack) return pack;
+      pack = game.packs.get(collection);
+      if (pack) return pack;
+    } catch (err) {
+      console.warn(`${AUCTION_NAME} could not create ${label} with one compendium API path.`, err);
+    }
+  }
+
+  return game.packs.get(collection) ?? null;
 }
 
 function addFloatingButton() {
@@ -789,12 +847,13 @@ class MidnightAuctionApp extends Application {
     html.find("[data-action='stop-auction']").on("click", () => this._onStopAuction());
     html.find("[data-action='toggle-settings']").on("click", () => this._onToggleSettings());
     html.find("[data-action='toggle-bidders']").on("click", () => this._onToggleBidders());
+    html.find("[data-action='settings-help']").on("click", () => this._onSettingsHelp());
     html.find("[data-action='pick-file']").on("click", (event) => this._onPickFile(event));
     html.find("[data-action='save-auction']").on("click", () => this._onSaveAuction());
     html.find("[data-action='new-auction']").on("click", () => this._onNewAuction());
     html.find("[data-action='load-auction']").on("click", (event) => this._onLoadAuction(event));
     html.find("[data-action='delete-auction']").on("click", (event) => this._onDeleteAuction(event));
-    html.find("[data-action='backup-auction']").on("click", () => this._onBackupAuction());
+    html.find("[data-action='store-auction']").on("click", () => this._onStoreAuction());
     html.find("[data-action='select-round']").on("click", (event) => this._onSelectRound(event));
     html.find("[data-action='delete-item']").on("click", (event) => this._onDeleteItem(event));
     html.find("[data-action='start-round']").on("click", (event) => this._onStartRound(event));
@@ -880,6 +939,23 @@ class MidnightAuctionApp extends Application {
     if (!game.user.isGM) return;
     this._showBidders = !this._showBidders;
     this.render(false);
+  }
+
+  _onSettingsHelp() {
+    new Dialog({
+      title: "Midnight Auction Settings Help",
+      content: settingsHelpHtml(),
+      buttons: {
+        close: {
+          icon: '<i class="fas fa-check"></i>',
+          label: "Close"
+        }
+      },
+      default: "close"
+    }, {
+      width: 620,
+      resizable: true
+    }).render(true);
   }
 
   _hasFocusedField() {
@@ -977,7 +1053,7 @@ class MidnightAuctionApp extends Application {
     }
   }
 
-  async _onBackupAuction() {
+  async _onStoreAuction() {
     if (!game.user.isGM) return;
     const name = activeAuctionName();
     const payload = {
@@ -986,19 +1062,15 @@ class MidnightAuctionApp extends Application {
       catalog: getCatalog()
     };
     try {
-      let pack = game.packs.get("world.midnight-auction-backups");
-      if (!pack && globalThis.CompendiumCollection?.createCompendium) {
-        pack = await globalThis.CompendiumCollection.createCompendium({
-          type: "JournalEntry",
-          label: "Midnight Auction Backups",
-          name: "midnight-auction-backups",
-          package: "world"
-        });
-      }
-      if (!pack) throw new Error("Backup compendium is not available.");
+      const pack = await getOrCreateWorldCompendium({
+        type: "JournalEntry",
+        label: "Midnight Auction Stores",
+        name: "midnight-auction-stores"
+      });
+      if (!pack) throw new Error("Store compendium is not available.");
 
       const entry = await JournalEntry.create({
-        name: `${name} Backup`,
+        name: `${name} Store`,
         pages: [{
           name: "Auction Data",
           type: "text",
@@ -1008,10 +1080,10 @@ class MidnightAuctionApp extends Application {
           }
         }]
       }, { pack: pack.collection });
-      ui.notifications.info(`Backed up ${entry.name} to Midnight Auction Backups.`);
+      ui.notifications.info(`Stored ${entry.name} in Midnight Auction Stores.`);
     } catch (err) {
       console.error(err);
-      ui.notifications.warn("Could not create the compendium backup. Check the console for details.");
+      ui.notifications.warn("Could not store the auction. Check the console for details.");
     }
   }
 
