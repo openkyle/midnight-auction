@@ -22,6 +22,7 @@ const AUCTION_START_SOUND_ENABLED_SETTING = "auctionStartSoundEnabled";
 const AUCTION_START_SOUND_SETTING = "auctionStartSound";
 const AUCTION_START_SOUND_VOLUME_SETTING = "auctionStartSoundVolume";
 const AUTO_OPEN_PLAYERS_SETTING = "autoOpenPlayers";
+const HIDE_IMAGE_TEXT_SETTING = "hideImageText";
 const AUCTION_PROFILES_SETTING = "auctionProfiles";
 const ACTIVE_AUCTION_SETTING = "activeAuctionId";
 const FLOAT_POSITION_SETTING = "floatingButtonPosition";
@@ -47,6 +48,7 @@ function defaultState() {
       bidderId: null
     },
     completedItemIds: [],
+    endedRoundIds: [],
     bids: [],
     latestResult: null,
     message: "The auction house is waiting for the next lot."
@@ -638,6 +640,7 @@ class MidnightAuctionApp extends Application {
     const nextBid = nextBidFor(activeItem, state);
     const selectedRound = this._selectedRound(catalog, state);
     const completed = new Set(state.completedItemIds ?? []);
+    const endedRounds = new Set(state.endedRoundIds ?? []);
     const npcBidders = getNpcBidders().map((bidder, index) => ({
       ...bidder,
       number: index + 1
@@ -651,12 +654,20 @@ class MidnightAuctionApp extends Application {
     const progress = timerProgress(state, timeLeft);
     const profiles = getAuctionProfiles();
     const currentAuctionId = activeAuctionId();
+    const canResetAuction = state.status !== "idle"
+      || Boolean(state.roundId)
+      || Boolean(state.itemId)
+      || Boolean(state.completedItemIds?.length)
+      || Boolean(state.endedRoundIds?.length)
+      || Boolean(state.bids?.length)
+      || Boolean(state.latestResult);
 
     return {
       isGM: game.user.isGM,
       title: isBidding ? "Bidding Is Live" : isPreview ? "Lot Preview" : AUCTION_NAME,
       subtitle: state.message,
       sceneImage: activeItem?.sceneImg || images[state.status] || images.idle,
+      hideImageText: Boolean(game.settings.get(MODULE_ID, HIDE_IMAGE_TEXT_SETTING)),
       timerLabel: isPreview ? "Reading Time" : isBidding ? "Seconds Left" : "Timer",
       timeLeft: timingActive ? timeLeft : "--",
       timeDisplay: timingActive ? formatTimerLabel(timeLeft) : "--",
@@ -674,6 +685,7 @@ class MidnightAuctionApp extends Application {
       gold,
       canBid: Boolean(activeItem && isBidding && goldActor && gold >= nextBid),
       canNpcBid: Boolean(activeItem && isBidding && npcBidders.some((bidder) => bidder.name?.trim())),
+      canResetAuction,
       bids: latestBids,
       highestBidder: highestBid
         ? {
@@ -721,6 +733,7 @@ class MidnightAuctionApp extends Application {
         auctionStartSound: game.settings.get(MODULE_ID, AUCTION_START_SOUND_SETTING) || "",
         auctionStartSoundVolume: Number(game.settings.get(MODULE_ID, AUCTION_START_SOUND_VOLUME_SETTING)) || 0.8,
         autoOpenPlayers: Boolean(game.settings.get(MODULE_ID, AUTO_OPEN_PLAYERS_SETTING)),
+        hideImageText: Boolean(game.settings.get(MODULE_ID, HIDE_IMAGE_TEXT_SETTING)),
         startingBidPercent: Number(game.settings.get(MODULE_ID, STARTING_BID_PERCENT_SETTING)) || 0,
         roundCount: configuredRoundCount(),
         defaultIncrement: Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 10,
@@ -728,7 +741,10 @@ class MidnightAuctionApp extends Application {
       },
       rounds: catalog.rounds.map((catalogRound) => ({
         ...catalogRound,
-        active: state.roundId === catalogRound.id,
+        tabTitle: `Lot ${catalogRound.number}`,
+        tabStatus: endedRounds.has(catalogRound.id) ? "(Ended)" : state.roundId === catalogRound.id && ["round", "preview", "item"].includes(state.status) ? "(Live)" : "",
+        active: state.roundId === catalogRound.id && ["round", "preview", "item"].includes(state.status),
+        ended: endedRounds.has(catalogRound.id),
         selected: selectedRound?.id === catalogRound.id,
         items: catalogRound.items.map((lot) => ({
           ...lot,
@@ -1077,6 +1093,7 @@ class MidnightAuctionApp extends Application {
     if (firstItem) {
       await this._startLot(round, firstItem, {
         completedItemIds: [],
+        endedRoundIds: (getState().endedRoundIds ?? []).filter((id) => id !== round.id),
         message: `${round.title || `Round ${round.number}`} begins. ${firstItem.name} is on the block.`
       });
       notifyAll(`${round.title || `Round ${round.number}`} begins with ${firstItem.name}.`);
@@ -1096,6 +1113,7 @@ class MidnightAuctionApp extends Application {
       winnerUserId: null,
       winnerActorUuid: null,
       completedItemIds: [],
+      endedRoundIds: (getState().endedRoundIds ?? []).filter((id) => id !== round.id),
       bids: [],
       message: `${round.title || `Round ${round.number}`} has no lots yet.`
     });
@@ -1120,6 +1138,7 @@ class MidnightAuctionApp extends Application {
       timerStartedAt: null,
       bids: [],
       completedItemIds: [],
+      endedRoundIds: [...new Set([...(getState().endedRoundIds ?? []), round.id])],
       message: `${round.title || `Round ${round.number}`} has ended.`
     });
     notifyAll(`${round.title || `Round ${round.number}`} has ended.`);
@@ -1132,11 +1151,19 @@ class MidnightAuctionApp extends Application {
     if (!round || !item) return;
     const state = getState();
     const completedItemIds = (state.completedItemIds ?? []).filter((id) => id !== item.id);
-    await this._startLot(round, item, { completedItemIds });
+    await this._startLot(round, item, {
+      completedItemIds,
+      endedRoundIds: (state.endedRoundIds ?? []).filter((id) => id !== round.id)
+    });
     notifyAll(`${item.name} is live at the Midnight Auction.`);
   }
 
-  async _startLot(round, item, { completedItemIds = getState().completedItemIds ?? [], latestResult = getState().latestResult ?? null, message = null } = {}) {
+  async _startLot(round, item, {
+    completedItemIds = getState().completedItemIds ?? [],
+    endedRoundIds = getState().endedRoundIds ?? [],
+    latestResult = getState().latestResult ?? null,
+    message = null
+  } = {}) {
     const startingPrice = effectiveStartingPrice(item);
     const now = Date.now();
     const usePreview = previewEnabled();
@@ -1159,6 +1186,7 @@ class MidnightAuctionApp extends Application {
         bidderId: null
       },
       completedItemIds,
+      endedRoundIds,
       bids: [],
       latestResult,
       message: lotMessage
@@ -1243,6 +1271,7 @@ class MidnightAuctionApp extends Application {
         endsAt: null,
         timerStartedAt: null,
         completedItemIds,
+        endedRoundIds: [...new Set([...(state.endedRoundIds ?? []), round.id])],
         latestResult,
         message: `${message} ${round.title || `Round ${round.number}`} is complete.`
       });
@@ -1439,7 +1468,8 @@ class MidnightAuctionApp extends Application {
       TRANSFER_ITEM_SETTING,
       WINNER_SOUND_ENABLED_SETTING,
       AUCTION_START_SOUND_ENABLED_SETTING,
-      AUTO_OPEN_PLAYERS_SETTING
+      AUTO_OPEN_PLAYERS_SETTING,
+      HIDE_IMAGE_TEXT_SETTING
     ]);
     let value = event.currentTarget.value;
     if (booleanSettings.has(setting)) value = event.currentTarget.checked;
@@ -1772,6 +1802,15 @@ Hooks.once("init", () => {
     config: true,
     type: Boolean,
     default: true
+  });
+
+  game.settings.register(MODULE_ID, HIDE_IMAGE_TEXT_SETTING, {
+    name: "Hide Auction Image Text",
+    hint: "Hide the title and status text over the large auction image.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false
   });
 
   game.settings.register(MODULE_ID, AUCTION_PROFILES_SETTING, {

@@ -2,10 +2,12 @@
   <section class="ma-auction-board">
     <article class="ma-hero-card">
       <img class="ma-scene" src="{{sceneImage}}" alt="Auction scene">
+      {{#unless hideImageText}}
       <div class="ma-stage-shade">
         <h1>{{title}}</h1>
         <p>{{subtitle}}</p>
       </div>
+      {{/unless}}
     </article>
 
     <article class="ma-bids-card">
@@ -68,13 +70,12 @@
   <section class="ma-gm-controls">
     <div class="ma-toolbar">
       <button type="button" data-action="toggle-settings" title="Auction settings"><i class="fas fa-cog"></i></button>
+      <button class="ma-section-tab {{#if showBidders}}is-open{{/if}}" type="button" data-action="toggle-bidders">
+        <i class="fas fa-users"></i> NPC Bidders
+      </button>
       <button type="button" data-action="npc-bid" {{#unless canNpcBid}}disabled{{/unless}}><i class="fas fa-user-secret"></i> NPC Bid {{nextNpcBid}} gp</button>
-      <button type="button" data-action="stop-auction"><i class="fas fa-stop"></i> End Auction</button>
+      <button type="button" data-action="stop-auction" {{#unless canResetAuction}}disabled{{/unless}}><i class="fas fa-stop"></i> Reset Auction Rounds</button>
     </div>
-
-    <button class="ma-section-tab {{#if showBidders}}is-open{{/if}}" type="button" data-action="toggle-bidders">
-      <i class="fas fa-users"></i> NPC Bidders
-    </button>
 
     {{#if showBidders}}
     <section class="ma-npc-panel" data-npc-drop>
@@ -106,7 +107,7 @@
         <strong>{{activeAuctionName}}</strong>
         <div>
           <button type="button" data-action="new-auction"><i class="fas fa-file"></i> New</button>
-          <button type="button" data-action="save-auction" {{#unless canSaveAuction}}disabled{{/unless}}><i class="fas fa-save"></i> Save Auction</button>
+          <button type="button" data-action="save-auction" {{#unless canSaveAuction}}disabled{{/unless}}><i class="fas fa-save"></i> Save</button>
           <button type="button" data-action="backup-auction"><i class="fas fa-archive"></i> Backup</button>
         </div>
       </div>
@@ -131,26 +132,8 @@
           {{/each}}
         </select>
       </label>
-      <label>Sudden Time
+      <label>Sudden Death Timer
         <input type="number" min="1" value="{{settings.suddenDeathSeconds}}" data-setting="suddenDeathSeconds">
-      </label>
-      <label class="ma-setting-check">Sudden Death
-        <input type="checkbox" {{checked settings.suddenDeath}} data-setting="suddenDeath">
-      </label>
-      <label class="ma-setting-check">Preview
-        <input type="checkbox" {{checked settings.previewEnabled}} data-setting="previewEnabled">
-      </label>
-      <label class="ma-setting-check">Transfer
-        <input type="checkbox" {{checked settings.transferItemToWinner}} data-setting="transferItemToWinner">
-      </label>
-      <label class="ma-setting-check">Invite
-        <input type="checkbox" {{checked settings.autoOpenPlayers}} data-setting="autoOpenPlayers">
-      </label>
-      <label class="ma-setting-check">Win Sound
-        <input type="checkbox" {{checked settings.winnerSoundEnabled}} data-setting="winnerSoundEnabled">
-      </label>
-      <label class="ma-setting-check">Start Sound
-        <input type="checkbox" {{checked settings.auctionStartSoundEnabled}} data-setting="auctionStartSoundEnabled">
       </label>
       <label>Read Time
         <input type="number" min="1" value="{{settings.previewSeconds}}" data-setting="previewSeconds">
@@ -164,16 +147,31 @@
       <label>Bid Step
         <input type="number" min="1" value="{{settings.defaultIncrement}}" data-setting="defaultIncrement">
       </label>
-      <label>NPC Step
-        <input type="number" min="1" value="{{settings.npcBidIncrement}}" data-setting="npcBidIncrement">
+      <label class="ma-setting-check">Sudden Death
+        <input type="checkbox" {{checked settings.suddenDeath}} data-setting="suddenDeath">
       </label>
-      <label class="ma-sound-picker">Auction Photo
+      <label class="ma-setting-check">Preview
+        <input type="checkbox" {{checked settings.previewEnabled}} data-setting="previewEnabled">
+      </label>
+      <label class="ma-setting-check">Transfer
+        <input type="checkbox" {{checked settings.transferItemToWinner}} data-setting="transferItemToWinner">
+      </label>
+      <label class="ma-setting-check">Invite
+        <input type="checkbox" {{checked settings.autoOpenPlayers}} data-setting="autoOpenPlayers">
+      </label>
+      <label class="ma-setting-check">Hide Image Text
+        <input type="checkbox" {{checked settings.hideImageText}} data-setting="hideImageText">
+      </label>
+      <label class="ma-file-picker">
+        <span class="ma-setting-label">Auction Photo</span>
         <span>
           <input type="text" readonly value="{{settings.auctionPhoto}}" placeholder="Choose image">
           <button type="button" data-action="pick-file" data-file-type="image" data-setting="auctionPhoto" title="Choose auction photo"><i class="fas fa-folder-open"></i></button>
         </span>
       </label>
-      <label class="ma-sound-picker">Winner Sound
+      <label class="ma-sound-picker">
+        <span class="ma-setting-label">Winner Sound</span>
+        <input type="checkbox" {{checked settings.winnerSoundEnabled}} data-setting="winnerSoundEnabled">
         <span>
           <input type="text" readonly value="{{settings.winnerSound}}" placeholder="Choose sound">
           <button type="button" data-action="pick-file" data-file-type="audio" data-setting="winnerSound" title="Choose winner sound"><i class="fas fa-folder-open"></i></button>
@@ -182,7 +180,9 @@
       <label class="ma-volume-setting">Winner Vol.
         <input type="range" min="0" max="1" step="0.05" value="{{settings.winnerSoundVolume}}" data-setting="winnerSoundVolume">
       </label>
-      <label class="ma-sound-picker">Start Sound
+      <label class="ma-sound-picker">
+        <span class="ma-setting-label">Start Sound</span>
+        <input type="checkbox" {{checked settings.auctionStartSoundEnabled}} data-setting="auctionStartSoundEnabled">
         <span>
           <input type="text" readonly value="{{settings.auctionStartSound}}" placeholder="Choose sound">
           <button type="button" data-action="pick-file" data-file-type="audio" data-setting="auctionStartSound" title="Choose start sound"><i class="fas fa-folder-open"></i></button>
@@ -196,8 +196,8 @@
 
     <nav class="ma-round-tabs" aria-label="Auction rounds">
       {{#each rounds}}
-      <button type="button" class="{{#if selected}}is-selected{{/if}} {{#if active}}is-live{{/if}}" data-action="select-round" data-round-id="{{id}}">
-        {{title}}
+      <button type="button" class="{{#if selected}}is-selected{{/if}} {{#if active}}is-live{{/if}} {{#if ended}}is-ended{{/if}}" data-action="select-round" data-round-id="{{id}}">
+        {{tabTitle}} {{tabStatus}}
       </button>
       {{/each}}
     </nav>

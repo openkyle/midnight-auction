@@ -390,7 +390,7 @@
 
 .ma-toolbar {
   display: grid;
-  grid-template-columns: 42px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 42px minmax(128px, 0.75fr) minmax(160px, 1fr) minmax(140px, 1fr);
   gap: 8px;
   align-items: center;
 }
@@ -400,9 +400,8 @@
 }
 
 .ma-section-tab {
-  justify-self: start;
   width: auto;
-  min-width: 128px;
+  min-width: 0;
   padding: 4px 10px;
   text-align: left;
 }
@@ -495,16 +494,42 @@
   grid-column: span 3;
 }
 
+.ma-file-picker,
 .ma-sound-picker {
   grid-column: span 3;
 }
 
-.ma-sound-picker span {
+.ma-file-picker {
+  display: grid;
+  grid-template-columns: minmax(86px, auto) minmax(0, 1fr);
+  gap: 4px 6px;
+  align-items: end;
+}
+
+.ma-sound-picker {
+  display: grid;
+  grid-template-columns: minmax(86px, auto) 18px minmax(0, 1fr);
+  gap: 4px 6px;
+  align-items: end;
+}
+
+.ma-setting-label {
+  line-height: 28px;
+}
+
+.ma-sound-picker > input[type="checkbox"] {
+  align-self: center;
+  width: auto;
+}
+
+.ma-file-picker span:last-child,
+.ma-sound-picker > span:last-child {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 30px;
   gap: 4px;
 }
 
+.ma-file-picker button,
 .ma-sound-picker button {
   height: 28px;
   min-height: 0;
@@ -594,27 +619,29 @@
 }
 
 .ma-round-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: 2px;
   margin-top: 4px;
   padding: 0 8px;
   border-bottom: 1px solid var(--ma-line);
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .ma-round-tabs button {
-  flex: 0 0 max-content;
   position: relative;
   top: 1px;
-  width: auto;
-  min-width: 100px;
-  max-width: max-content;
-  padding: 4px 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 5px;
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   border-bottom: 1px solid var(--ma-line);
   opacity: 0.82;
+  font-size: 12px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ma-round-tabs button.is-selected {
@@ -624,11 +651,8 @@
   background: rgba(255, 255, 255, 0.28);
 }
 
-.ma-round-tabs button.is-live::after {
-  content: " live";
-  font-size: 10px;
-  text-transform: uppercase;
-  opacity: 0.72;
+.ma-round-tabs button.is-ended {
+  opacity: 0.68;
 }
 
 .ma-round {
