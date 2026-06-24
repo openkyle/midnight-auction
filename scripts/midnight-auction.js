@@ -1289,17 +1289,9 @@ class MidnightAuctionApp extends Application {
     const bidders = getNpcBidders().filter((bidder) => bidder.name?.trim());
     if (!bidders.length) return ui.notifications.warn("Add at least one NPC bidder first.");
 
-    const streak = state.npcBidStreak?.itemId === state.itemId
-      ? foundry.utils.deepClone(state.npcBidStreak)
-      : { itemId: state.itemId, count: 0, bidderId: null };
     const amount = nextNpcBidFor(item, state);
     const now = Date.now();
-    const focused = bidders.find((bidder) => bidder.id === streak.bidderId);
-    const bidder = streak.count >= 3 && focused
-      ? focused
-      : bidders[Math.floor(Math.random() * bidders.length)];
-    const nextCount = streak.count + 1;
-    const focusId = nextCount >= 3 ? bidder.id : streak.bidderId;
+    const bidder = bidders[Math.floor(Math.random() * bidders.length)];
     const bid = {
       bidderName: bidder.name,
       bidderImg: bidder.img || "",
@@ -1316,11 +1308,6 @@ class MidnightAuctionApp extends Application {
       timerStartedAt: bidResetsTimer() ? now : state.timerStartedAt,
       winnerUserId: null,
       winnerActorUuid: null,
-      npcBidStreak: {
-        itemId: state.itemId,
-        count: nextCount,
-        bidderId: focusId
-      },
       bids: [bid, ...(state.bids ?? [])].slice(0, 20),
       message: `${bidder.name} raises the room to ${amount} gp.`
     };

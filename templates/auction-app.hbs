@@ -79,6 +79,7 @@
     {{#if showBidders}}
     <section class="ma-npc-panel" data-npc-drop>
       <div class="ma-panel-title">Drop Auction Bidders here</div>
+      <p class="ma-npc-help">A random NPC will bid on the lot items when you click the NPC Bid button. Use this to stymie your players.</p>
       <div class="ma-npc-list">
         {{#each npcSlots}}
         <div class="ma-npc-row {{#if img}}has-img{{/if}} {{#unless occupied}}is-empty{{/unless}}" data-npc-index="{{index}}">

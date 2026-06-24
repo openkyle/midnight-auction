@@ -524,6 +524,13 @@
   text-align: center;
 }
 
+.ma-npc-help {
+  margin: 3px 0 6px;
+  color: #5e5a51;
+  font-size: 13px;
+  text-align: center;
+}
+
 .ma-npc-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(180px, 1fr));
