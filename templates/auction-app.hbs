@@ -108,18 +108,19 @@
           <button type="button" data-action="new-auction">New</button>
           <button type="button" data-action="save-auction" {{#unless canSaveAuction}}disabled{{/unless}}>Save</button>
           <button type="button" data-action="store-auction">Store</button>
+          <button type="button" data-action="settings-help">Help</button>
         </div>
       </div>
-      <div class="ma-profile-list">
+      <div class="ma-profile-select-row">
+        <select data-auction-profile-select {{#unless auctionProfiles.length}}disabled{{/unless}}>
         {{#each auctionProfiles}}
-        <div class="ma-profile-row {{#if active}}is-active{{/if}}">
-          <span>{{name}}</span>
-          <button type="button" data-action="load-auction" data-profile-id="{{id}}">Load</button>
-          <button type="button" data-action="delete-auction" data-profile-id="{{id}}" title="Delete saved auction"><i class="fas fa-times"></i></button>
-        </div>
+          <option value="{{id}}" {{#if active}}selected{{/if}}>{{name}}</option>
         {{else}}
-        <p class="ma-empty">No saved auctions yet.</p>
+          <option value="">No saved auctions</option>
         {{/each}}
+        </select>
+        <button type="button" data-action="load-auction" {{#unless auctionProfiles.length}}disabled{{/unless}}>Load</button>
+        <button type="button" data-action="delete-auction" {{#unless auctionProfiles.length}}disabled{{/unless}}>Delete</button>
       </div>
     </section>
 
@@ -160,7 +161,6 @@
       </label>
       <label class="ma-setting-check">Hide Image Text
         <input type="checkbox" {{checked settings.hideImageText}} data-setting="hideImageText">
-        <button class="ma-inline-help" type="button" data-action="settings-help" title="Settings help"><i class="fas fa-question-circle"></i></button>
       </label>
       <div class="ma-media-settings">
         <div class="ma-media-files">

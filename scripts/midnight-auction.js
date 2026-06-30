@@ -1043,7 +1043,7 @@ class MidnightAuctionApp extends Application {
 
   async _onLoadAuction(event) {
     if (!game.user.isGM) return;
-    const profileId = event.currentTarget.dataset.profileId;
+    const profileId = this._selectedProfileId(event);
     const profile = getAuctionProfiles().find((candidate) => candidate.id === profileId);
     if (!profile) return;
     await setCatalog(profile.catalog);
@@ -1054,7 +1054,8 @@ class MidnightAuctionApp extends Application {
 
   async _onDeleteAuction(event) {
     if (!game.user.isGM) return;
-    const profileId = event.currentTarget.dataset.profileId;
+    const profileId = this._selectedProfileId(event);
+    if (!profileId) return;
     const profiles = getAuctionProfiles().filter((profile) => profile.id !== profileId);
     await setAuctionProfiles(profiles);
     if (activeAuctionId() === profileId) {
@@ -1062,6 +1063,12 @@ class MidnightAuctionApp extends Application {
       renderAuctionApps();
       game.socket.emit(SOCKET, { type: "profiles" });
     }
+  }
+
+  _selectedProfileId(event) {
+    return event.currentTarget.dataset.profileId
+      || this.element?.[0]?.querySelector("[data-auction-profile-select]")?.value
+      || "";
   }
 
   async _onStoreAuction() {
