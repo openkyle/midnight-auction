@@ -657,6 +657,17 @@ function addFloatingButton() {
   document.body.appendChild(button);
 }
 
+function registerModuleApi() {
+  const module = game.modules?.get?.(MODULE_ID);
+  if (!module) return;
+  module.api = {
+    open: openAuction,
+    reset: () => setState(defaultState()),
+    getCatalog,
+    setCatalog
+  };
+}
+
 class MidnightAuctionApp extends Application {
   static get defaultOptions() {
     return foundry.utils.mergeObject(super.defaultOptions, {
@@ -1713,6 +1724,8 @@ async function openAuction() {
 }
 
 Hooks.once("init", () => {
+  registerModuleApi();
+
   game.settings.register(MODULE_ID, STATE_SETTING, {
     scope: "world",
     config: false,
@@ -1948,6 +1961,8 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
+  registerModuleApi();
+
   game.socket.on(SOCKET, async (data) => {
     if (data.type === "bid") return processBid(data);
     if (data.type === "open-auction") return handleAuctionInvite(data.message);
@@ -1965,10 +1980,3 @@ Hooks.once("ready", async () => {
 
 Hooks.on("renderSceneControls", () => addFloatingButton());
 Hooks.on("canvasReady", () => addFloatingButton());
-
-game.modules.get(MODULE_ID).api = {
-  open: openAuction,
-  reset: () => setState(defaultState()),
-  getCatalog,
-  setCatalog
-};
