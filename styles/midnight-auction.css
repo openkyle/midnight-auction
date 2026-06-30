@@ -84,6 +84,11 @@
   color: #000000;
 }
 
+#sidebar-tabs .midnight-auction-sidebar-button {
+  display: grid;
+  place-items: center;
+}
+
 .ma-auction-board {
   display: grid;
   grid-template-columns: minmax(320px, 1.1fr) minmax(280px, 0.9fr);

@@ -7,11 +7,12 @@ A tiny Foundry VTT v11 module for running quick, dramatic auctions in DnD5e.
 1. Copy the `midnight-auction` folder into your Foundry `Data/modules` folder.
 2. Restart Foundry or return to setup.
 3. Enable **Midnight Auction** in your world.
-4. Open the floating **Midnight Auction** button in the scene UI, or run the **Midnight Auction** macro.
+4. Open the **Midnight Auction** gavel in the sidebar, enable the floating icon, or run the **Midnight Auction** macro.
 
 ## Use
 
-- GMs open the small floating gavel icon. Drag it to move it.
+- GMs open the gavel icon in the sidebar by default.
+- The floating gavel can be enabled in settings. Drag it to move it.
 - The auction window preloads its current artwork before opening to avoid image resize jumps.
 - GMs can use the gear button to configure auction settings during play.
 - Use the Lot tabs to move between fixed auction groups. A running tab shows `(Live)` and a completed or ended tab shows `(Ended)`.
@@ -43,6 +44,8 @@ Open the gear panel in the GM auction window. The small help button in the botto
 - **Transfer to Player** copies the won item to the winning character when the lot closes.
 - **Invite Players** opens the auction window for players when a round starts.
 - **Hide Image Text** hides the title and status text over the large auction image.
+- **Sidebar Icon** shows the Midnight Auction gavel in the sidebar tab bar for GMs.
+- **Floating Icon** shows the draggable Midnight Auction gavel over the scene UI for GMs.
 - **Auction Photo** sets the default large auction image used when a lot does not provide a scene image.
 - **Winner Sound** enables and selects the sound played when a lot has a winner.
 - **Winner Vol.** controls the winner sound volume.

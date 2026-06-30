@@ -23,6 +23,8 @@ const AUCTION_START_SOUND_SETTING = "auctionStartSound";
 const AUCTION_START_SOUND_VOLUME_SETTING = "auctionStartSoundVolume";
 const AUTO_OPEN_PLAYERS_SETTING = "autoOpenPlayers";
 const HIDE_IMAGE_TEXT_SETTING = "hideImageText";
+const ENABLE_FLOATING_ICON_SETTING = "enableFloatingIcon";
+const ENABLE_SIDEBAR_ICON_SETTING = "enableSidebarIcon";
 const AUCTION_PROFILES_SETTING = "auctionProfiles";
 const ACTIVE_AUCTION_SETTING = "activeAuctionId";
 const FLOAT_POSITION_SETTING = "floatingButtonPosition";
@@ -156,6 +158,15 @@ function activeAuctionId() {
 function activeAuctionName() {
   const id = activeAuctionId();
   return getAuctionProfiles().find((profile) => profile.id === id)?.name || "Unsaved Auction";
+}
+
+function getBooleanSetting(setting, fallback = false) {
+  try {
+    const value = game.settings.get(MODULE_ID, setting);
+    return value === undefined ? fallback : Boolean(value);
+  } catch (_err) {
+    return fallback;
+  }
 }
 
 async function setState(nextState, { ping = true } = {}) {
@@ -498,6 +509,8 @@ function settingsHelpHtml() {
         <dt>Transfer to Player</dt><dd>When enabled, a copy of the won item is added to the winning character.</dd>
         <dt>Invite Players</dt><dd>When enabled, starting a round opens the auction window for players.</dd>
         <dt>Hide Image Text</dt><dd>Hides the title and status text over the large auction image.</dd>
+        <dt>Sidebar Icon</dt><dd>Shows the Midnight Auction gavel in the sidebar tab bar for GMs.</dd>
+        <dt>Floating Icon</dt><dd>Shows the draggable floating Midnight Auction gavel over the scene UI for GMs.</dd>
         <dt>Auction Photo</dt><dd>Sets the default large auction image used when a lot does not provide a scene image.</dd>
         <dt>Winner Sound</dt><dd>Enables and selects the sound played when a lot has a winner.</dd>
         <dt>Winner Vol.</dt><dd>Controls the winner sound volume.</dd>
@@ -589,7 +602,7 @@ async function getOrCreateWorldCompendium({ type, label, name }) {
 }
 
 function addFloatingButton() {
-  if (!game.user.isGM) {
+  if (!game.user.isGM || !getBooleanSetting(ENABLE_FLOATING_ICON_SETTING, false)) {
     document.getElementById("midnight-auction-float")?.remove();
     return;
   }
@@ -655,6 +668,36 @@ function addFloatingButton() {
   });
 
   document.body.appendChild(button);
+}
+
+function addSidebarButton() {
+  const existing = document.getElementById("midnight-auction-sidebar");
+  if (!game.user.isGM || !getBooleanSetting(ENABLE_SIDEBAR_ICON_SETTING, true)) {
+    existing?.remove();
+    return;
+  }
+  if (existing) return;
+
+  const tabs = document.getElementById("sidebar-tabs") || document.querySelector("#sidebar nav.tabs");
+  if (!tabs) return;
+
+  const button = document.createElement("a");
+  button.id = "midnight-auction-sidebar";
+  button.className = "item midnight-auction-sidebar-button";
+  button.title = "Open Midnight Auction";
+  button.setAttribute("aria-label", "Open Midnight Auction");
+  button.innerHTML = `<i class="fas fa-gavel"></i>`;
+  button.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openAuction();
+  });
+  tabs.appendChild(button);
+}
+
+function updateAuctionLaunchers() {
+  addFloatingButton();
+  addSidebarButton();
 }
 
 function registerModuleApi() {
@@ -803,6 +846,8 @@ class MidnightAuctionApp extends Application {
         auctionStartSoundVolume: Number(game.settings.get(MODULE_ID, AUCTION_START_SOUND_VOLUME_SETTING)) || 0.8,
         autoOpenPlayers: Boolean(game.settings.get(MODULE_ID, AUTO_OPEN_PLAYERS_SETTING)),
         hideImageText: Boolean(game.settings.get(MODULE_ID, HIDE_IMAGE_TEXT_SETTING)),
+        enableFloatingIcon: getBooleanSetting(ENABLE_FLOATING_ICON_SETTING, false),
+        enableSidebarIcon: getBooleanSetting(ENABLE_SIDEBAR_ICON_SETTING, true),
         startingBidPercent: Number(game.settings.get(MODULE_ID, STARTING_BID_PERCENT_SETTING)) || 0,
         roundCount: configuredRoundCount(),
         defaultIncrement: Number(game.settings.get(MODULE_ID, DEFAULT_INCREMENT_SETTING)) || 10,
@@ -1559,7 +1604,9 @@ class MidnightAuctionApp extends Application {
       WINNER_SOUND_ENABLED_SETTING,
       AUCTION_START_SOUND_ENABLED_SETTING,
       AUTO_OPEN_PLAYERS_SETTING,
-      HIDE_IMAGE_TEXT_SETTING
+      HIDE_IMAGE_TEXT_SETTING,
+      ENABLE_FLOATING_ICON_SETTING,
+      ENABLE_SIDEBAR_ICON_SETTING
     ]);
     let value = event.currentTarget.value;
     if (booleanSettings.has(setting)) value = event.currentTarget.checked;
@@ -1575,6 +1622,7 @@ class MidnightAuctionApp extends Application {
     await game.settings.set(MODULE_ID, setting, value);
     if (setting === STARTING_BID_PERCENT_SETTING) await setCatalog(repriceCatalog(getCatalog()), { ping: false });
     await this._applySettingsToLiveAuction(setting);
+    if ([ENABLE_FLOATING_ICON_SETTING, ENABLE_SIDEBAR_ICON_SETTING].includes(setting)) updateAuctionLaunchers();
     if (setting === ROUND_COUNT_SETTING) this._selectedRoundId = null;
     renderAuctionApps();
     game.socket.emit(SOCKET, { type: "settings" });
@@ -1905,6 +1953,26 @@ Hooks.once("init", () => {
     default: false
   });
 
+  game.settings.register(MODULE_ID, ENABLE_FLOATING_ICON_SETTING, {
+    name: "Enable Floating Auction Icon",
+    hint: "Show a draggable Midnight Auction gavel button over the scene UI for GMs.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: () => updateAuctionLaunchers()
+  });
+
+  game.settings.register(MODULE_ID, ENABLE_SIDEBAR_ICON_SETTING, {
+    name: "Enable Sidebar Auction Icon",
+    hint: "Show a Midnight Auction gavel button in the sidebar tab bar for GMs.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => updateAuctionLaunchers()
+  });
+
   game.settings.register(MODULE_ID, AUCTION_PROFILES_SETTING, {
     scope: "world",
     config: false,
@@ -1981,9 +2049,10 @@ Hooks.once("ready", async () => {
     return null;
   });
 
-  addFloatingButton();
+  updateAuctionLaunchers();
   await ensureMacros();
 });
 
-Hooks.on("renderSceneControls", () => addFloatingButton());
-Hooks.on("canvasReady", () => addFloatingButton());
+Hooks.on("renderSceneControls", () => updateAuctionLaunchers());
+Hooks.on("renderSidebar", () => updateAuctionLaunchers());
+Hooks.on("canvasReady", () => updateAuctionLaunchers());
